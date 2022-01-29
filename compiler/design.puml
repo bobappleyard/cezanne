@@ -1,0 +1,14 @@
+@startuml
+!include <C4/C4_Container>
+
+Container_Ext(src, "Source File")
+Container(shell, "Shell AST")
+Container(core, "Core AST")
+Container_Ext(obj, "Object File")
+
+Rel(src, shell, "parse")
+Rel(shell, shell, "reduce")
+Rel(shell, core, "convert")
+Rel(core, obj, "asm")
+
+@enduml

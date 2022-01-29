@@ -1,0 +1,12 @@
+
+// support for throwing/catching errors is based on two functions:
+// 1. throw(e)
+//      begin unwinding the process using e as the raised error
+//      stop when the process is completely unwound or a try is encountered
+// 2. try(f, g)
+//      call f
+//      if f causes the process to unwind:
+//          call g with the raised error
+//          return what g returns
+//      otherwise return what f returns
+
