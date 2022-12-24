@@ -1,6 +1,13 @@
 Cezanne
 =======
 
-Cezanne is intended to be a simple dynamic programming language that is easy to write interpreters
-for. Currently the set of operations is small and most of the "smart" stuff happens in the compiler.
-Right now the compiler is written in Python, but it will be written in Cezanne soon.
+Cezanne is a simple programming language to experiment with algebraic
+effects.
+
+It currently has a very simple compiler in Go, which generates Scheme
+code. An interpreter in Go is under construction, which will
+hopefully provide a platform to experiment with optimising an
+explicit-stack implementation of effect handling.
+
+The ultimate aim is to generate e.g. WASM and have a runtime in Rust
+or something like that. That's probably a bit of a way off though.
