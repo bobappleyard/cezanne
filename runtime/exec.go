@@ -6,7 +6,6 @@ const (
 	loadOp = iota
 	storeOp
 	naturalOp
-	methodOp
 	bufferOp
 	globalOp
 	createOp
@@ -14,11 +13,11 @@ const (
 	callOp
 )
 
-func (p *Process) run(handlers Object) {
-	p.data[0] = intValue(0)
-	p.data[1] = handlers
-	p.data[2] = intValue(0)
-	p.data[3] = intValue(-1)
+func (p *Process) run() {
+	p.data[0] = Int(0)
+	p.data[1] = &standardObject{classID: p.env.emptyClassID}
+	p.data[2] = Int(0)
+	p.data[3] = Int(-1)
 	p.frame = 2
 	for p.codePos != -1 {
 		p.step()
@@ -37,11 +36,7 @@ func (p *Process) step() {
 
 	case naturalOp:
 		value := p.readInt()
-		p.value = intValue(value)
-
-	case methodOp:
-		value := p.readInt()
-		p.value = &methodObject{value}
+		p.value = Int(value)
 
 	case bufferOp:
 		start := p.readInt()
@@ -61,22 +56,20 @@ func (p *Process) step() {
 		p.ret()
 
 	case callOp:
-		offset := p.readInt()
+		offset := format.MethodID(p.readInt())
 		base := p.readByte()
-		p.callMethod(offset, base)
+		p.frame += base
+		p.callMethod(offset)
 	}
 }
 
-func (p *Process) arg(id int) Object {
+func (p *Process) Arg(id int) Object {
 	return p.data[p.frame+id+2]
 }
 
-func (p *Process) ret() {
-	depth := p.data[p.frame].(*intObject)
-	codePos := p.data[p.frame+1].(*intObject)
-
-	p.frame -= depth.value
-	p.codePos = codePos.value
+func (p *Process) Return(x Object) {
+	p.value = x
+	p.ret()
 }
 
 func (p *Process) readByte() int {
@@ -104,11 +97,31 @@ func (p *Process) createObject(classID format.ClassID, args []Object) Object {
 	}
 }
 
-func (p *Process) callMethod(offset, base int) {
-	class := p.value.ClassID()
-	method := p.env.methods[int(class)+offset]
-	p.frame += base
+func (p *Process) ret() {
+	depth := p.data[p.frame].(*intObject)
+	codePos := p.data[p.frame+1].(*intObject)
 
+	p.frame -= depth.value
+	p.codePos = codePos.value
+}
+
+func (p *Process) callMethod(offset format.MethodID) {
+	p.enterMethod(p.getMethod(p.value, offset))
+}
+
+func (p *Process) getMethod(object Object, id format.MethodID) *format.Binding {
+	classID := object.ClassID()
+	idx := int(classID) + int(id)
+	if idx < 0 || idx >= len(p.env.methods) {
+		return nil
+	}
+	if p.env.methods[idx].ClassID != classID {
+		return nil
+	}
+	return &p.env.methods[idx]
+}
+
+func (p *Process) enterMethod(method *format.Binding) {
 	if method.Start < 0 {
 		p.env.extern[-method.Start-1](p)
 	} else {

@@ -7,11 +7,13 @@ type Object interface {
 }
 
 type Env struct {
-	extern  []func(*Process)
-	globals []Object
-	classes []format.Class
-	methods []format.Binding
-	code    []byte
+	callMethodID format.MethodID
+	emptyClassID format.ClassID
+	extern       []func(*Process)
+	globals      []Object
+	classes      []format.Class
+	methods      []format.Binding
+	code         []byte
 }
 
 type Process struct {
@@ -25,4 +27,17 @@ type Process struct {
 
 type Continuation struct {
 	data []Object
+}
+
+func (p *Process) Env() *Env {
+	return p.env
+}
+
+func (e *Env) CommunicateLinkage(callMethodID format.MethodID, emptyClassID format.ClassID) {
+	e.callMethodID = callMethodID
+	e.emptyClassID = emptyClassID
+}
+
+func (e *Env) RegisterPackage(pkg Object) {
+	e.globals = append(e.globals, pkg)
 }

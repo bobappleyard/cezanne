@@ -14,11 +14,11 @@ func TestLoad(t *testing.T) {
 		},
 	}
 	p := &Process{env: e}
-	p.data[0] = &intObject{25}
+	p.data[0] = Int(25)
 
 	p.step()
 
-	assert.Equal(t, &intObject{25}, p.value)
+	assert.Equal(t, Int(25), p.value)
 }
 
 func TestStore(t *testing.T) {
@@ -28,11 +28,11 @@ func TestStore(t *testing.T) {
 		},
 	}
 	p := &Process{env: e}
-	p.value = &intObject{25}
+	p.value = Int(25)
 
 	p.step()
 
-	assert.Equal(t, &intObject{25}, p.data[0])
+	assert.Equal(t, Int(25), p.data[0])
 }
 
 func TestNatural(t *testing.T) {
@@ -45,20 +45,7 @@ func TestNatural(t *testing.T) {
 
 	p.step()
 
-	assert.Equal(t, &intObject{25}, p.value)
-}
-
-func TestMethod(t *testing.T) {
-	e := &Env{
-		code: []byte{
-			methodOp, 10, 0, 0, 0,
-		},
-	}
-	p := &Process{env: e}
-
-	p.step()
-
-	assert.Equal(t, &methodObject{10}, p.value)
+	assert.Equal(t, Int(25), p.value)
 }
 
 func TestBuffer(t *testing.T) {
@@ -81,14 +68,14 @@ func TestGlobal(t *testing.T) {
 			globalOp, 0, 0, 0, 0,
 		},
 		globals: []Object{
-			&intObject{5},
+			Int(5),
 		},
 	}
 	p := &Process{env: e}
 
 	p.step()
 
-	assert.Equal(t, &intObject{5}, p.value)
+	assert.Equal(t, Int(5), p.value)
 }
 
 func TestCreate(t *testing.T) {
@@ -101,13 +88,13 @@ func TestCreate(t *testing.T) {
 		},
 	}
 	p := &Process{env: e}
-	p.data[0] = &intObject{4}
+	p.data[0] = Int(4)
 
 	p.step()
 
 	assert.Equal(t, &standardObject{
 		classID: 0,
-		fields:  []Object{&intObject{4}},
+		fields:  []Object{Int(4)},
 	}, p.value)
 }
 
@@ -118,8 +105,8 @@ func TestRet(t *testing.T) {
 		},
 	}
 	p := &Process{env: e}
-	p.data[0] = intValue(1)
-	p.data[1] = intValue(10)
+	p.data[0] = Int(1)
+	p.data[1] = Int(10)
 
 	p.step()
 
@@ -180,8 +167,8 @@ func TestRun(t *testing.T) {
 		},
 		extern: []func(*Process){
 			func(p *Process) {
-				left := p.arg(0).(*intObject).value
-				right := p.arg(1).(*intObject).value
+				left := p.Arg(0).(*intObject).value
+				right := p.Arg(1).(*intObject).value
 				p.value = &intObject{left + right}
 				p.ret()
 			},
@@ -189,7 +176,7 @@ func TestRun(t *testing.T) {
 	}
 	p := &Process{env: e}
 
-	p.run(nil)
+	p.run()
 
-	assert.Equal(t, &intObject{3}, p.value)
+	assert.Equal(t, Int(3), p.value)
 }

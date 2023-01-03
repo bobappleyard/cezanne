@@ -1,6 +1,7 @@
 package format
 
 type ClassID int32
+type MethodID int32
 
 type Program struct {
 	ExternalMethods []string
@@ -10,16 +11,17 @@ type Program struct {
 }
 
 type Package struct {
-	Imports     []string
-	Classes     []Class
-	Methods     []Method
-	Bindings    []Binding
-	Relocations []Relocation
-	Code        []byte
+	Imports         []string
+	ExternalMethods []string
+	Classes         []Class
+	Methods         []Method
+	Bindings        []Binding
+	Relocations     []Relocation
+	Code            []byte
 }
 
 type Binding struct {
-	MethodID int32
+	MethodID MethodID
 	ClassID  ClassID
 	Start    int32
 }
@@ -34,7 +36,6 @@ type Visibility int32
 const (
 	Public Visibility = iota
 	Private
-	External
 )
 
 type Method struct {
