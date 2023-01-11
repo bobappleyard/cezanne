@@ -47,9 +47,11 @@ func (w *testWriter) WriteAt(p []byte, off int64) (int, error) {
 }
 
 func TestWrite(t *testing.T) {
+	type bs []byte
 	type item struct {
 		ID     int32
 		Offset int32
+		Bs     bs
 	}
 	type file struct {
 		Name  string
@@ -59,7 +61,7 @@ func TestWrite(t *testing.T) {
 	var d testWriter
 	e := file{
 		Name:  "hello",
-		Items: []item{{1, 10000}, {2678, 4}},
+		Items: []item{{1, 10000, bs{}}, {2678, 4, bs{1}}},
 	}
 
 	err := Write(&d, e)

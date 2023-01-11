@@ -1,6 +1,10 @@
 package runtime
 
-import "github.com/bobappleyard/cezanne/format"
+import (
+	"fmt"
+
+	"github.com/bobappleyard/cezanne/format"
+)
 
 func (p *Process) installHandlers(handlers Object, next int) {
 	// shift the activation frame up
@@ -24,34 +28,53 @@ func (p *Process) EnterContext(handlers Object, body Object) {
 	p.callMethod(p.env.callMethodID)
 }
 
-func (p *Process) TriggerEffect(id format.MethodID, argCount int) {
-	for ctx := p.context; ctx != 0; ctx -= AsInt(p.data[ctx]) {
+func (p *Process) TriggerEffect(id format.MethodID, argProvider Object) {
+	for ctx := p.context; ; ctx -= AsInt(p.data[ctx]) {
 		handlers := p.data[ctx+1]
 		method := p.getMethod(handlers, id)
 		if method == nil {
 			continue
 		}
 
-		// shift args + establish fake handler context
-		copy(p.data[p.frame+4:], p.data[p.frame+2:p.frame+2+argCount])
-		p.installHandlers(&standardObject{classID: p.env.emptyClassID}, ctx)
+		// establish fake handler context
+		p.installHandlers(&standardObject{classID: emptyClass}, ctx)
 
 		// enter handler
-		p.value = handlers
-		p.callMethod(id)
+		p.data[p.frame+2] = handlers
+		p.value = argProvider
+		p.callMethod(p.env.callMethodID)
+		break
 	}
 }
 
 func (p *Process) FastAbortHandler(value Object) {
-
+	p.context -= AsInt(p.data[p.context])
+	p.frame = p.context + 2
+	p.Return(value)
 }
 
 func (p *Process) FastResumeHandler(value Object) {
-
+	p.Return(value)
 }
 
 func (p *Process) ReifyHandlerContext(body Object) {
+	fmt.Println(p.context)
 
+	ctx := AsInt(p.data[p.context])
+	data := make([]Object, ctx)
+	copy(data, p.data[p.context-ctx+4:])
+
+	fmt.Println(data)
+
+	p.frame -= ctx
+	p.data[p.frame-2] = Int(AsInt(p.data[p.frame]) - 2)
+	p.data[p.frame-1] = p.data[p.frame+1]
+	p.frame -= 2
+
+	p.data[p.frame+2] = &contextObject{data: data}
+
+	p.value = body
+	p.callMethod(p.env.callMethodID)
 }
 
 func (p *Process) SlowResumeHandler(ctx, value Object) {

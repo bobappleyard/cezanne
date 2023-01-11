@@ -20,10 +20,20 @@ type Package struct {
 	Code            []byte
 }
 
+type BindingKind int32
+
+const (
+	_ BindingKind = iota
+	StandardBinding
+	ExternalBinding
+	HandlerBinding
+)
+
 type Binding struct {
-	MethodID MethodID
-	ClassID  ClassID
-	Start    int32
+	MethodID   MethodID
+	ClassID    ClassID
+	Kind       BindingKind
+	EntryPoint int32
 }
 
 type Class struct {
@@ -34,7 +44,8 @@ type Class struct {
 type Visibility int32
 
 const (
-	Public Visibility = iota
+	_ Visibility = iota
+	Public
 	Private
 )
 
@@ -46,9 +57,11 @@ type Method struct {
 type RelocationKind int32
 
 const (
-	ImportRel RelocationKind = iota
+	_ RelocationKind = iota
+	ImportRel
 	ClassRel
 	MethodRel
+	CodeRel
 )
 
 type Relocation struct {
@@ -56,3 +69,14 @@ type Relocation struct {
 	ID   int32
 	Pos  int32
 }
+
+const (
+	LoadOp = iota
+	StoreOp
+	NaturalOp
+	BufferOp
+	GlobalOp
+	CreateOp
+	RetOp
+	CallOp
+)

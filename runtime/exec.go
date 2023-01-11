@@ -1,24 +1,16 @@
 package runtime
 
-import "github.com/bobappleyard/cezanne/format"
-
-const (
-	loadOp = iota
-	storeOp
-	naturalOp
-	bufferOp
-	globalOp
-	createOp
-	retOp
-	callOp
+import (
+	"github.com/bobappleyard/cezanne/format"
 )
 
 func (p *Process) run() {
 	p.data[0] = Int(0)
-	p.data[1] = &standardObject{classID: p.env.emptyClassID}
 	p.data[2] = Int(0)
 	p.data[3] = Int(-1)
+
 	p.frame = 2
+
 	for p.codePos != -1 {
 		p.step()
 	}
@@ -26,36 +18,36 @@ func (p *Process) run() {
 
 func (p *Process) step() {
 	switch p.readByte() {
-	case loadOp:
+	case format.LoadOp:
 		varID := p.readByte()
 		p.value = p.data[p.frame+varID]
 
-	case storeOp:
+	case format.StoreOp:
 		varID := p.readByte()
 		p.data[p.frame+varID] = p.value
 
-	case naturalOp:
+	case format.NaturalOp:
 		value := p.readInt()
 		p.value = Int(value)
 
-	case bufferOp:
+	case format.BufferOp:
 		start := p.readInt()
 		end := p.readInt()
 		p.value = &bufferObject{p.env.code[start:end]}
 
-	case globalOp:
+	case format.GlobalOp:
 		globalID := p.readInt()
 		p.value = p.env.globals[globalID]
 
-	case createOp:
+	case format.CreateOp:
 		classID := format.ClassID(p.readInt())
 		base := p.readByte()
 		p.value = p.createObject(classID, p.data[p.frame+base:])
 
-	case retOp:
+	case format.RetOp:
 		p.ret()
 
-	case callOp:
+	case format.CallOp:
 		offset := format.MethodID(p.readInt())
 		base := p.readByte()
 		p.frame += base
@@ -101,6 +93,11 @@ func (p *Process) ret() {
 	depth := p.data[p.frame].(*intObject)
 	codePos := p.data[p.frame+1].(*intObject)
 
+	// returning from the method will leave the current handler context
+	if p.frame == p.context+2 {
+		p.context -= AsInt(p.data[p.frame-2])
+	}
+
 	p.frame -= depth.value
 	p.codePos = codePos.value
 }
@@ -122,9 +119,9 @@ func (p *Process) getMethod(object Object, id format.MethodID) *format.Binding {
 }
 
 func (p *Process) enterMethod(method *format.Binding) {
-	if method.Start < 0 {
-		p.env.extern[-method.Start-1](p)
+	if method.Kind == format.ExternalBinding {
+		p.env.extern[method.EntryPoint](p)
 	} else {
-		p.codePos = int(method.Start)
+		p.codePos = int(method.EntryPoint)
 	}
 }

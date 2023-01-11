@@ -53,7 +53,7 @@ func buildEncoding(t reflect.Type) encoding {
 		return &intEncoding{bytes: 4}
 
 	case reflect.Slice:
-		if t == byteSlice {
+		if t.AssignableTo(byteSlice) {
 			return bytesEncoding{}
 		}
 		return &sliceEncoding{

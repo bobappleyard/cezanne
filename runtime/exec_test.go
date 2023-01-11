@@ -10,7 +10,7 @@ import (
 func TestLoad(t *testing.T) {
 	e := &Env{
 		code: []byte{
-			loadOp, 0,
+			format.LoadOp, 0,
 		},
 	}
 	p := &Process{env: e}
@@ -24,7 +24,7 @@ func TestLoad(t *testing.T) {
 func TestStore(t *testing.T) {
 	e := &Env{
 		code: []byte{
-			storeOp, 0,
+			format.StoreOp, 0,
 		},
 	}
 	p := &Process{env: e}
@@ -38,7 +38,7 @@ func TestStore(t *testing.T) {
 func TestNatural(t *testing.T) {
 	e := &Env{
 		code: []byte{
-			naturalOp, 25, 0, 0, 0,
+			format.NaturalOp, 25, 0, 0, 0,
 		},
 	}
 	p := &Process{env: e}
@@ -51,7 +51,7 @@ func TestNatural(t *testing.T) {
 func TestBuffer(t *testing.T) {
 	e := &Env{
 		code: []byte{
-			bufferOp, 9, 0, 0, 0, 14, 0, 0, 0,
+			format.BufferOp, 9, 0, 0, 0, 14, 0, 0, 0,
 			'h', 'e', 'l', 'l', 'o',
 		},
 	}
@@ -65,7 +65,7 @@ func TestBuffer(t *testing.T) {
 func TestGlobal(t *testing.T) {
 	e := &Env{
 		code: []byte{
-			globalOp, 0, 0, 0, 0,
+			format.GlobalOp, 0, 0, 0, 0,
 		},
 		globals: []Object{
 			Int(5),
@@ -81,7 +81,7 @@ func TestGlobal(t *testing.T) {
 func TestCreate(t *testing.T) {
 	e := &Env{
 		code: []byte{
-			createOp, 0, 0, 0, 0, 0,
+			format.CreateOp, 0, 0, 0, 0, 0,
 		},
 		classes: []format.Class{
 			{Fieldc: 1},
@@ -101,7 +101,7 @@ func TestCreate(t *testing.T) {
 func TestRet(t *testing.T) {
 	e := &Env{
 		code: []byte{
-			retOp,
+			format.RetOp,
 		},
 	}
 	p := &Process{env: e}
@@ -117,10 +117,10 @@ func TestRet(t *testing.T) {
 func TestCall(t *testing.T) {
 	e := &Env{
 		code: []byte{
-			callOp, 0, 0, 0, 0, 0,
+			format.CallOp, 0, 0, 0, 0, 0,
 		},
 		methods: []format.Binding{
-			{Start: 10},
+			{Kind: format.StandardBinding, EntryPoint: 10},
 		},
 	}
 	p := &Process{env: e}
@@ -134,36 +134,36 @@ func TestCall(t *testing.T) {
 func TestRun(t *testing.T) {
 	e := &Env{
 		code: []byte{
-			globalOp, 0, 0, 0, 0,
-			callOp, 0, 0, 0, 0, 0,
+			format.GlobalOp, 0, 0, 0, 0,
+			format.CallOp, 0, 0, 0, 0, 0,
 
-			50: naturalOp, 1, 0, 0, 0,
-			storeOp, 3,
-			globalOp, 1, 0, 0, 0,
-			callOp, 1, 0, 0, 0, 0,
+			50: format.NaturalOp, 1, 0, 0, 0,
+			format.StoreOp, 3,
+			format.GlobalOp, 1, 0, 0, 0,
+			format.CallOp, 1, 0, 0, 0, 0,
 
-			100: naturalOp, 2, 0, 0, 0,
-			storeOp, 2,
-			naturalOp, 150, 0, 0, 0,
-			storeOp, 3,
-			naturalOp, 1, 0, 0, 0,
-			storeOp, 4,
-			globalOp, 0, 0, 0, 0,
-			callOp, 1, 0, 0, 0, 2,
-			150: storeOp, 2,
-			naturalOp, 1, 0, 0, 0,
-			storeOp, 3,
-			globalOp, 1, 0, 0, 0,
-			callOp, 1, 0, 0, 0, 0,
+			100: format.NaturalOp, 2, 0, 0, 0,
+			format.StoreOp, 2,
+			format.NaturalOp, 150, 0, 0, 0,
+			format.StoreOp, 3,
+			format.NaturalOp, 1, 0, 0, 0,
+			format.StoreOp, 4,
+			format.GlobalOp, 0, 0, 0, 0,
+			format.CallOp, 1, 0, 0, 0, 2,
+			150: format.StoreOp, 2,
+			format.NaturalOp, 1, 0, 0, 0,
+			format.StoreOp, 3,
+			format.GlobalOp, 1, 0, 0, 0,
+			format.CallOp, 1, 0, 0, 0, 0,
 		},
 		globals: []Object{
 			&standardObject{},
 			&standardObject{classID: 1},
 		},
 		methods: []format.Binding{
-			{Start: 100},
-			{Start: 50},
-			{ClassID: 1, Start: -1},
+			{Kind: format.StandardBinding, EntryPoint: 100},
+			{Kind: format.StandardBinding, EntryPoint: 50},
+			{ClassID: 1, Kind: format.ExternalBinding, EntryPoint: 0},
 		},
 		extern: []func(*Process){
 			func(p *Process) {

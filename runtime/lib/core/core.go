@@ -25,9 +25,7 @@ func asClassID(x runtime.Object) format.ClassID {
 }
 
 func communicateLinkage(p *runtime.Process) {
-	callMethodID := asMethodID(p.Arg(0))
-	emptyClassID := asClassID(p.Arg(1))
-	p.Env().CommunicateLinkage(callMethodID, emptyClassID)
+	p.Env().CommunicateLinkage(asMethodID(p.Arg(0)))
 }
 
 func registerPackage(p *runtime.Process) {
@@ -39,7 +37,7 @@ func enterContext(p *runtime.Process) {
 }
 
 func triggerEffect(p *runtime.Process) {
-	p.TriggerEffect(asMethodID(p.Arg(0)), runtime.AsInt(p.Arg(1)))
+	p.TriggerEffect(asMethodID(p.Arg(0)), p.Arg(1))
 }
 
 func fastAbortHandler(p *runtime.Process) {

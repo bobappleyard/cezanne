@@ -8,7 +8,6 @@ type Object interface {
 
 type Env struct {
 	callMethodID format.MethodID
-	emptyClassID format.ClassID
 	extern       []func(*Process)
 	globals      []Object
 	classes      []format.Class
@@ -25,17 +24,12 @@ type Process struct {
 	data    [1024]Object
 }
 
-type Continuation struct {
-	data []Object
-}
-
 func (p *Process) Env() *Env {
 	return p.env
 }
 
-func (e *Env) CommunicateLinkage(callMethodID format.MethodID, emptyClassID format.ClassID) {
+func (e *Env) CommunicateLinkage(callMethodID format.MethodID) {
 	e.callMethodID = callMethodID
-	e.emptyClassID = emptyClassID
 }
 
 func (e *Env) RegisterPackage(pkg Object) {

@@ -6,6 +6,13 @@ import (
 	"github.com/bobappleyard/cezanne/format"
 )
 
+const (
+	intClass format.ClassID = iota
+	bufferClass
+	emptyClass
+	contextClass
+)
+
 type intObject struct {
 	value int
 }
@@ -23,7 +30,7 @@ func (x *intObject) String() string {
 }
 
 func (*intObject) ClassID() format.ClassID {
-	panic("unimplemented")
+	return intClass
 }
 
 type bufferObject struct {
@@ -31,7 +38,7 @@ type bufferObject struct {
 }
 
 func (*bufferObject) ClassID() format.ClassID {
-	panic("unimplemented")
+	return bufferClass
 }
 
 type standardObject struct {
@@ -41,4 +48,12 @@ type standardObject struct {
 
 func (o *standardObject) ClassID() format.ClassID {
 	return o.classID
+}
+
+type contextObject struct {
+	data []Object
+}
+
+func (o *contextObject) ClassID() format.ClassID {
+	return contextClass
 }
