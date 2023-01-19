@@ -11,7 +11,7 @@ func TestRead(t *testing.T) {
 	var file struct {
 		Name  string
 		Items []struct {
-			ID     int32
+			ID     uint32
 			Offset int32
 		}
 	}
@@ -49,7 +49,7 @@ func (w *testWriter) WriteAt(p []byte, off int64) (int, error) {
 func TestWrite(t *testing.T) {
 	type bs []byte
 	type item struct {
-		ID     int32
+		ID     uint32
 		Offset int32
 		Bs     bs
 	}

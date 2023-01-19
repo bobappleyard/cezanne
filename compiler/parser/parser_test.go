@@ -3,9 +3,8 @@ package parser
 import (
 	"testing"
 
+	"github.com/bobappleyard/cezanne/assert"
 	"github.com/bobappleyard/cezanne/compiler/ast"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestParseFile(t *testing.T) {
@@ -76,7 +75,7 @@ func TestParseFile(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			var m ast.Module
 			err := ParseFile(&m, []byte(test.in))
-			require.NoError(t, err)
+			assert.Nil(t, err)
 			assert.Equal(t, test.out, m)
 		})
 	}
@@ -91,7 +90,7 @@ func TestFullParse(t *testing.T) {
 		}
 	}
 	`))
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.Equal(t, ast.Module{
 		Funcs: []ast.Method{{
 			Name: "main",

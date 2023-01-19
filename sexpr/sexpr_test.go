@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/bobappleyard/cezanne/assert"
 )
 
 func TestWrite(t *testing.T) {

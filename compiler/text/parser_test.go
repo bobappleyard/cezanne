@@ -3,8 +3,8 @@ package text
 import (
 	"testing"
 
+	"github.com/bobappleyard/cezanne/assert"
 	"github.com/bobappleyard/cezanne/compiler/stream"
-	"github.com/stretchr/testify/assert"
 )
 
 type testTok interface {
@@ -72,11 +72,11 @@ func TestGrammar(t *testing.T) {
 	})
 
 	expr, err := Parse[testTok, testExpr](ruleset{}, toks)
-	assert.NoError(t, err)
-	assert.Equal(t, add{
+	assert.Nil(t, err)
+	assert.Equal[testExpr](t, expr, add{
 		left:  add{left: intVal{value: 1}, right: intVal{value: 2}},
 		right: intVal{value: 3},
-	}, expr)
+	})
 }
 
 func TestNullableGrammar(t *testing.T) {
@@ -87,6 +87,6 @@ func TestNullableGrammar(t *testing.T) {
 	})
 
 	expr, err := Parse[testTok, intList](nullableRuleset{}, toks)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.Equal(t, intList{[]int{1, 2, 3}}, expr)
 }

@@ -52,6 +52,9 @@ func buildEncoding(t reflect.Type) encoding {
 	case reflect.Int32:
 		return &intEncoding{bytes: 4}
 
+	case reflect.Uint32:
+		return &uintEncoding{bytes: 4}
+
 	case reflect.Slice:
 		if t.AssignableTo(byteSlice) {
 			return bytesEncoding{}
@@ -140,6 +143,41 @@ func (e *intEncoding) read(from io.ReaderAt, at int64, into reflect.Value) error
 
 // width implements encoding
 func (e *intEncoding) width() int64 {
+	return e.bytes
+}
+
+type uintEncoding struct {
+	bytes int64
+}
+
+// write implements encoding
+func (e *uintEncoding) write(w *writer, at int64, from reflect.Value) error {
+	buf := make([]byte, e.bytes)
+	x := from.Uint()
+	for i := range buf {
+		buf[i] = byte(x >> (i * 8))
+	}
+	_, err := w.dest.WriteAt(buf, at)
+	return err
+}
+
+// read implements encoding
+func (e *uintEncoding) read(from io.ReaderAt, at int64, into reflect.Value) error {
+	buf := make([]byte, e.bytes)
+	err := readBuffer(from, at, buf)
+	if err != nil {
+		return err
+	}
+	var res uint64
+	for i, b := range buf {
+		res |= uint64(b) << (8 * i)
+	}
+	into.SetUint(res)
+	return nil
+}
+
+// width implements encoding
+func (e *uintEncoding) width() int64 {
 	return e.bytes
 }
 

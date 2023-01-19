@@ -4,8 +4,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/bobappleyard/cezanne/assert"
 )
 
 func TestLexer(t *testing.T) {
@@ -88,10 +87,10 @@ func TestLexer(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			l := p.Tokenize([]byte(test.in))
 			for _, tok := range test.out {
-				require.True(t, l.Next())
-				require.Equal(t, tok, l.This())
+				assert.True(t, l.Next())
+				assert.Equal(t, l.This(), tok)
 			}
-			require.False(t, l.Next())
+			assert.False(t, l.Next())
 		})
 	}
 }
@@ -128,7 +127,7 @@ func TestLexerBuild(t *testing.T) {
 	l := lp.Tokenize([]byte("0"))
 
 	assert.True(t, l.Next())
-	assert.Equal(t, 1, l.This().ID)
+	assert.Equal(t, l.This().ID, 1)
 
 }
 
@@ -229,10 +228,10 @@ func TestTypedLexer(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			l := p.Tokenize([]byte(test.in))
 			for _, tok := range test.out {
-				require.True(t, l.Next())
-				require.Equal(t, tok, l.This())
+				assert.True(t, l.Next())
+				assert.Equal(t, tok, l.This())
 			}
-			require.False(t, l.Next())
+			assert.False(t, l.Next())
 		})
 	}
 }

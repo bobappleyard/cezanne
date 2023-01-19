@@ -5,11 +5,10 @@ import (
 	"os/exec"
 	"testing"
 
+	"github.com/bobappleyard/cezanne/assert"
 	"github.com/bobappleyard/cezanne/compiler/ast"
 	"github.com/bobappleyard/cezanne/compiler/backend"
 	"github.com/bobappleyard/cezanne/compiler/parser"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestCompile(t *testing.T) {
@@ -24,7 +23,7 @@ func TestCompile(t *testing.T) {
 
 	`))
 
-	require.NoError(t, err)
+	assert.Nil(t, err)
 
 	m.Name = "main"
 
@@ -34,10 +33,10 @@ func TestCompile(t *testing.T) {
 	ctx.CompileModule(&m)
 
 	prog, err := os.CreateTemp("", "")
-	require.NoError(t, err)
+	assert.Nil(t, err)
 
 	err = compileApplication(ctx, prog)
-	require.NoError(t, err)
+	assert.Nil(t, err)
 
 	prog.Close()
 
@@ -46,6 +45,6 @@ func TestCompile(t *testing.T) {
 	cmd := exec.Command("/usr/bin/chezscheme", "--script", prog.Name())
 
 	out, err := cmd.CombinedOutput()
-	require.NoError(t, err)
+	assert.Nil(t, err)
 	assert.Equal(t, "6\n", string(out))
 }

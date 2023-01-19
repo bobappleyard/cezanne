@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/bobappleyard/cezanne/assert"
 	"github.com/bobappleyard/cezanne/compiler/ast"
 	"github.com/bobappleyard/cezanne/sexpr"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestNamespace(t *testing.T) {
@@ -26,7 +26,7 @@ func TestNamespace(t *testing.T) {
 		{ns.Method("hello"), "2:hello"},
 	})
 
-	assert.Equal(t, "(vector 0 1:str 0 2:str 2 1:hello 2 2:hello)", fmt.Sprint(ns.Render()))
+	assert.Equal(t, fmt.Sprint(ns.Render()), "(vector 0 1:str 0 2:str 2 1:hello 2 2:hello)")
 }
 
 func TestCompile(t *testing.T) {
@@ -86,8 +86,8 @@ func TestCompile(t *testing.T) {
 		)),
 	}
 
-	assert.Equal(t, sexpr.Call("vector", sexpr.Int(0), sexpr.Var("y")), expr)
-	assert.Equal(t, module, ctx.Render())
+	assert.Equal(t, expr, sexpr.Call("vector", sexpr.Int(0), sexpr.Var("y")))
+	assert.Equal(t, ctx.Render(), module)
 }
 
 func TestCompileModule(t *testing.T) {
@@ -122,5 +122,5 @@ func TestCompileModule(t *testing.T) {
 		)),
 	}
 
-	assert.Equal(t, module, ctx.Render())
+	assert.Equal(t, ctx.Render(), module)
 }

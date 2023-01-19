@@ -1,8 +1,19 @@
-package runtime
+package env
 
 import (
 	"github.com/bobappleyard/cezanne/format"
+	"github.com/bobappleyard/cezanne/runtime/api"
 )
+
+type Process struct {
+	env      *Env
+	frame    int
+	frameEnd int
+	context  int
+	codePos  int
+	value    api.Object
+	data     [1024]api.Object
+}
 
 func (p *Process) run() {
 	p.data[0] = Int(0)
@@ -24,6 +35,9 @@ func (p *Process) step() {
 
 	case format.StoreOp:
 		varID := p.readByte()
+		if varID > p.frameEnd {
+			p.frameEnd = varID
+		}
 		p.data[p.frame+varID] = p.value
 
 	case format.NaturalOp:
@@ -33,7 +47,7 @@ func (p *Process) step() {
 	case format.BufferOp:
 		start := p.readInt()
 		end := p.readInt()
-		p.value = &bufferObject{p.env.code[start:end]}
+		p.value = p.bufferObject(start, end)
 
 	case format.GlobalOp:
 		globalID := p.readInt()
@@ -42,7 +56,7 @@ func (p *Process) step() {
 	case format.CreateOp:
 		classID := format.ClassID(p.readInt())
 		base := p.readByte()
-		p.value = p.createObject(classID, p.data[p.frame+base:])
+		p.value = p.env.memory.Alloc(classID, p.data[p.frame+base:])
 
 	case format.RetOp:
 		p.ret()
@@ -55,13 +69,21 @@ func (p *Process) step() {
 	}
 }
 
-func (p *Process) Arg(id int) Object {
+func (p *Process) Arg(id int) api.Object {
 	return p.data[p.frame+id+2]
 }
 
-func (p *Process) Return(x Object) {
+func (p *Process) Return(x api.Object) {
 	p.value = x
 	p.ret()
+}
+
+func (p *Process) Field(x api.Object, id int) api.Object {
+	return p.env.memory.Get(x, id)
+}
+
+func (p *Process) Create(class format.ClassID, fields ...api.Object) api.Object {
+	return p.env.memory.Alloc(class, fields)
 }
 
 func (p *Process) readByte() int {
@@ -79,49 +101,45 @@ func (p *Process) readInt() int {
 	return b1 | b2<<8 | b3<<16 | b4<<24
 }
 
-func (p *Process) createObject(classID format.ClassID, args []Object) Object {
-	fields := make([]Object, p.env.classes[classID].Fieldc)
-	copy(fields, args)
-
-	return &standardObject{
-		classID: classID,
-		fields:  fields,
-	}
+func (p *Process) bufferObject(start, end int) api.Object {
+	return p.Create(bufferClass, Int(start), Int(end))
 }
 
 func (p *Process) ret() {
-	depth := p.data[p.frame].(*intObject)
-	codePos := p.data[p.frame+1].(*intObject)
+	depth := AsInt(p.data[p.frame])
+	codePos := AsInt(p.data[p.frame+1])
 
 	// returning from the method will leave the current handler context
 	if p.frame == p.context+2 {
 		p.context -= AsInt(p.data[p.frame-2])
 	}
 
-	p.frame -= depth.value
-	p.codePos = codePos.value
+	p.frame -= depth
+	p.frameEnd = depth
+	p.codePos = codePos
 }
 
 func (p *Process) callMethod(offset format.MethodID) {
 	p.enterMethod(p.getMethod(p.value, offset))
 }
 
-func (p *Process) getMethod(object Object, id format.MethodID) *format.Binding {
-	classID := object.ClassID()
-	idx := int(classID) + int(id)
+func (p *Process) getMethod(object api.Object, id format.MethodID) *format.Binding {
+	idx := int(object.Class) + int(id)
 	if idx < 0 || idx >= len(p.env.methods) {
 		return nil
 	}
-	if p.env.methods[idx].ClassID != classID {
+	if p.env.methods[idx].ClassID != object.Class {
 		return nil
 	}
 	return &p.env.methods[idx]
 }
 
 func (p *Process) enterMethod(method *format.Binding) {
-	if method.Kind == format.ExternalBinding {
-		p.env.extern[method.EntryPoint](p)
+	kind := format.ImplKind(method.EntryPoint & 0b11)
+	pos := method.EntryPoint >> 2
+	if kind == format.ExternalBinding {
+		p.env.extern[pos](p)
 	} else {
-		p.codePos = int(method.EntryPoint)
+		p.codePos = int(pos)
 	}
 }

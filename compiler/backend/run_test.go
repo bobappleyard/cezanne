@@ -6,10 +6,9 @@ import (
 	"os/exec"
 	"testing"
 
+	"github.com/bobappleyard/cezanne/assert"
 	"github.com/bobappleyard/cezanne/compiler/ast"
 	"github.com/bobappleyard/cezanne/sexpr"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestRun(t *testing.T) {
@@ -87,7 +86,7 @@ func TestRun(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			prog, err := os.CreateTemp("", "")
-			require.Nil(t, err)
+			assert.Nil(t, err)
 
 			ctx := Context{
 				module: new(Module),
@@ -97,14 +96,14 @@ func TestRun(t *testing.T) {
 			ctx.defineRuntimeTypes()
 
 			fmt.Fprintln(prog, `(load "runtime.ss")`)
-			require.NoError(t, err)
+			assert.Nil(t, err)
 			for _, x := range ctx.Render() {
 				fmt.Fprintln(prog, x)
 			}
 
 			ep := sexpr.Call("run", sexpr.Call("lambda", sexpr.List(), s))
 			_, err = fmt.Fprintln(prog, sexpr.Call("write", ep))
-			require.NoError(t, err)
+			assert.Nil(t, err)
 
 			prog.Close()
 
@@ -113,7 +112,7 @@ func TestRun(t *testing.T) {
 			cmd := exec.Command("/usr/bin/chezscheme", "--script", prog.Name())
 
 			out, err := cmd.CombinedOutput()
-			require.NoError(t, err)
+			assert.Nil(t, err)
 			assert.Equal(t, test.output, string(out))
 		})
 	}

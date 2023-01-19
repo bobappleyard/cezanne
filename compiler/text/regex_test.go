@@ -4,7 +4,7 @@ import (
 	"testing"
 	"unicode"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/bobappleyard/cezanne/assert"
 )
 
 func TestTokenization(t *testing.T) {
@@ -169,7 +169,7 @@ func TestParse(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			toks := regexProg.Tokenize([]byte(test.in))
 			expr, err := Parse[token, expr](new(regexRules), toks)
-			assert.NoError(t, err)
+			assert.Nil(t, err)
 			assert.Equal(t, test.out, expr)
 		})
 	}

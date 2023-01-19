@@ -1,7 +1,7 @@
 package format
 
-type ClassID int32
-type MethodID int32
+type ClassID uint32
+type MethodID uint32
 
 type Program struct {
 	ExternalMethods []string
@@ -15,24 +15,29 @@ type Package struct {
 	ExternalMethods []string
 	Classes         []Class
 	Methods         []Method
-	Bindings        []Binding
+	Bindings        []Implementation
 	Relocations     []Relocation
 	Code            []byte
 }
 
-type BindingKind int32
+type ImplKind int32
 
 const (
-	_ BindingKind = iota
+	_ ImplKind = iota
 	StandardBinding
 	ExternalBinding
 	HandlerBinding
 )
 
+type Implementation struct {
+	Class      ClassID
+	Method     MethodID
+	Kind       ImplKind
+	EntryPoint int32
+}
+
 type Binding struct {
-	MethodID   MethodID
 	ClassID    ClassID
-	Kind       BindingKind
 	EntryPoint int32
 }
 

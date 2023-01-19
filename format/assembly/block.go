@@ -9,12 +9,23 @@ type Block struct {
 	rels     []format.Relocation
 	methods  []format.Method
 	classes  []format.Class
-	bindings []format.Binding
+	bindings []format.Implementation
 	imports  []string
 }
 
 type Value interface {
 	write()
+}
+
+func (b *Block) Package() *format.Package {
+	return &format.Package{
+		Imports:     b.imports,
+		Classes:     b.classes,
+		Methods:     b.methods,
+		Bindings:    b.bindings,
+		Relocations: b.rels,
+		Code:        b.code,
+	}
 }
 
 func (b *Block) Load(id int) {
@@ -121,7 +132,7 @@ func (b *Block) Method(name string) *Method {
 	b.methods, id = ensure(b.methods, func(x format.Method) bool {
 		return x.Name == name
 	}, func() format.Method {
-		return format.Method{Name: name}
+		return format.Method{Name: name, Visibility: format.Public}
 	})
 	return &Method{
 		b:  b,
@@ -183,26 +194,27 @@ func (b *Block) Import(name string) *Import {
 	}
 }
 
-type Literal struct {
+type Fixed struct {
 	b     *Block
 	value int
 }
 
-func (l *Literal) write() {
+func (l *Fixed) write() {
 	l.b.writeInt(l.value)
 }
 
-func (b *Block) Literal(value int) *Literal {
-	return &Literal{
+func (b *Block) Fixed(value int) *Fixed {
+	return &Fixed{
+		b:     b,
 		value: value,
 	}
 }
 
-func (b *Block) StartBinding(class *Class, method *Method, kind format.BindingKind) {
-	b.bindings = append(b.bindings, format.Binding{
-		ClassID:    class.id,
-		MethodID:   method.id,
-		Kind:       kind,
+func (b *Block) ImplementMethod(class *Class, method *Method) {
+	b.bindings = append(b.bindings, format.Implementation{
+		Class:      class.id,
+		Method:     method.id,
+		Kind:       format.StandardBinding,
 		EntryPoint: int32(len(b.code)),
 	})
 }
