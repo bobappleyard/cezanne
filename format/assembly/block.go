@@ -10,6 +10,7 @@ type Block struct {
 	methods  []format.Method
 	classes  []format.Class
 	bindings []format.Implementation
+	external []string
 	imports  []string
 }
 
@@ -19,12 +20,13 @@ type Value interface {
 
 func (b *Block) Package() *format.Package {
 	return &format.Package{
-		Imports:     b.imports,
-		Classes:     b.classes,
-		Methods:     b.methods,
-		Bindings:    b.bindings,
-		Relocations: b.rels,
-		Code:        b.code,
+		ExternalMethods: b.external,
+		Imports:         b.imports,
+		Classes:         b.classes,
+		Methods:         b.methods,
+		Implementations: b.bindings,
+		Relocations:     b.rels,
+		Code:            b.code,
 	}
 }
 
@@ -43,14 +45,13 @@ func (b *Block) Natural(value Value) {
 	value.write()
 }
 
-func (b *Block) Buffer(start, end *Location) {
-	b.writeByte(format.BufferOp)
-	start.write()
-	end.write()
+func (b *Block) GlobalLoad(id *Global) {
+	b.writeByte(format.GlobalLoadOp)
+	id.write()
 }
 
-func (b *Block) Global(id *Import) {
-	b.writeByte(format.GlobalOp)
+func (b *Block) GlobalStore(id *Global) {
+	b.writeByte(format.GlobalLoadOp)
 	id.write()
 }
 
@@ -167,28 +168,32 @@ func (b *Block) Class(name string) *Class {
 	}
 }
 
-type Import struct {
+func (c *Class) SetFields(count int) {
+	c.b.classes[c.id].Fieldc = uint32(count)
+}
+
+type Global struct {
 	b  *Block
 	id int
 }
 
-func (l *Import) write() {
+func (l *Global) write() {
 	l.b.rels = append(l.b.rels, format.Relocation{
-		Kind: format.ImportRel,
+		Kind: format.GlobalRel,
 		ID:   int32(l.id),
 		Pos:  int32(len(l.b.code)),
 	})
 	l.b.writeInt(0)
 }
 
-func (b *Block) Import(name string) *Import {
+func (b *Block) Global(name string) *Global {
 	var id int
 	b.imports, id = ensure(b.imports, func(x string) bool {
 		return x == name
 	}, func() string {
 		return name
 	})
-	return &Import{
+	return &Global{
 		b:  b,
 		id: id,
 	}
@@ -215,7 +220,22 @@ func (b *Block) ImplementMethod(class *Class, method *Method) {
 		Class:      class.id,
 		Method:     method.id,
 		Kind:       format.StandardBinding,
-		EntryPoint: int32(len(b.code)),
+		EntryPoint: uint32(len(b.code)),
+	})
+}
+
+func (b *Block) ImplementExternalMethod(class *Class, method *Method, ext string) {
+	var entryPoint int
+	b.external, entryPoint = ensure(b.external, func(x string) bool {
+		return x == ext
+	}, func() string {
+		return ext
+	})
+	b.bindings = append(b.bindings, format.Implementation{
+		Class:      class.id,
+		Method:     method.id,
+		Kind:       format.ExternalBinding,
+		EntryPoint: uint32(entryPoint),
 	})
 }
 

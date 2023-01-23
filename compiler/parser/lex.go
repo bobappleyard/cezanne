@@ -4,9 +4,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/bobappleyard/cezanne/compiler/must"
 	"github.com/bobappleyard/cezanne/compiler/stream"
 	"github.com/bobappleyard/cezanne/compiler/text"
+	"github.com/bobappleyard/cezanne/must"
 )
 
 type token interface {

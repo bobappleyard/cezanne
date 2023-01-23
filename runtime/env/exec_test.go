@@ -46,29 +46,10 @@ func TestNatural(t *testing.T) {
 	assert.Equal(t, Int(25), p.value)
 }
 
-func TestBuffer(t *testing.T) {
+func TestLoadGlobal(t *testing.T) {
 	e := New(32)
 	e.code = []byte{
-		format.BufferOp, 9, 0, 0, 0, 14, 0, 0, 0,
-		'h', 'e', 'l', 'l', 'o',
-	}
-	e.classes = []format.Class{
-		1: {Fieldc: 2},
-	}
-	p := &Process{env: e}
-
-	p.step()
-
-	assert.Equal(t, p.value.Class, bufferClass)
-	start := AsInt(p.Field(p.value, 0))
-	end := AsInt(p.Field(p.value, 1))
-	assert.Equal(t, string(e.code[start:end]), "hello")
-}
-
-func TestGlobal(t *testing.T) {
-	e := New(32)
-	e.code = []byte{
-		format.GlobalOp, 0, 0, 0, 0,
+		format.GlobalLoadOp, 0, 0, 0, 0,
 	}
 	e.globals = []api.Object{
 		Int(5),
@@ -79,6 +60,20 @@ func TestGlobal(t *testing.T) {
 	p.step()
 
 	assert.Equal(t, p.value, Int(5))
+}
+
+func TestStoreGlobal(t *testing.T) {
+	e := New(32)
+	e.code = []byte{
+		format.GlobalStoreOp, 0, 0, 0, 0,
+	}
+	e.globals = make([]api.Object, 1)
+
+	p := &Process{env: e}
+	p.value = Int(25)
+	p.step()
+
+	assert.Equal(t, e.globals, []api.Object{Int(25)})
 }
 
 func TestCreate(t *testing.T) {
@@ -120,27 +115,28 @@ func TestCall(t *testing.T) {
 	e.code = []byte{
 		format.CallOp, 0, 0, 0, 0, 0,
 	}
-	e.methods = []format.Binding{
-		{EntryPoint: 41},
+	e.bindings = []format.Implementation{
+		{EntryPoint: 10},
 	}
 	e.classes = []format.Class{{}}
+	e.offsets = []int32{0}
 	p := &Process{env: e}
 	p.value = p.env.memory.Alloc(0, nil)
 
 	p.step()
 
-	assert.Equal(t, 10, p.codePos)
+	assert.Equal(t, p.codePos, 10)
 }
 
 func TestRun(t *testing.T) {
 	e := New(32)
 	e.code = []byte{
-		format.GlobalOp, 0, 0, 0, 0,
+		format.GlobalLoadOp, 0, 0, 0, 0,
 		format.CallOp, 0, 0, 0, 0, 0,
 
 		50: format.NaturalOp, 1, 0, 0, 0,
 		format.StoreOp, 3,
-		format.GlobalOp, 1, 0, 0, 0,
+		format.GlobalLoadOp, 1, 0, 0, 0,
 		format.CallOp, 1, 0, 0, 0, 0,
 
 		100: format.NaturalOp, 2, 0, 0, 0,
@@ -149,19 +145,20 @@ func TestRun(t *testing.T) {
 		format.StoreOp, 3,
 		format.NaturalOp, 1, 0, 0, 0,
 		format.StoreOp, 4,
-		format.GlobalOp, 0, 0, 0, 0,
+		format.GlobalLoadOp, 0, 0, 0, 0,
 		format.CallOp, 1, 0, 0, 0, 2,
 		150: format.StoreOp, 2,
 		format.NaturalOp, 1, 0, 0, 0,
 		format.StoreOp, 3,
-		format.GlobalOp, 1, 0, 0, 0,
-		format.CallOp, 1, 0, 0, 0, 0,
+		format.GlobalLoadOp, 1, 0, 0, 0,
+		format.CallOp, 2, 0, 0, 0, 0,
 	}
 	e.classes = make([]format.Class, 2)
-	e.methods = []format.Binding{
-		{EntryPoint: 401},
-		{EntryPoint: 201},
-		{ClassID: 1, EntryPoint: 2},
+	e.offsets = []int32{0, 1, 1}
+	e.bindings = []format.Implementation{
+		{EntryPoint: 100, Kind: format.StandardBinding},
+		{EntryPoint: 50, Kind: format.StandardBinding},
+		{Class: 1, EntryPoint: 0, Kind: format.ExternalBinding},
 	}
 	e.extern = []func(*Process){
 		func(p *Process) {

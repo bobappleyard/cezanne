@@ -11,7 +11,8 @@ type Env struct {
 	extern       []func(*Process)
 	globals      []api.Object
 	classes      []format.Class
-	methods      []format.Binding
+	bindings     []format.Implementation
+	offsets      []int32
 	code         []byte
 	memory       *memory.Arena
 	processes    []Process

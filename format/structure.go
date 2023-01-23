@@ -5,8 +5,10 @@ type MethodID uint32
 
 type Program struct {
 	ExternalMethods []string
+	GlobalCount     int32
 	Classes         []Class
-	Bindings        []Binding
+	MethodOffsets   []int32
+	Implmentations  []Implementation
 	Code            []byte
 }
 
@@ -15,7 +17,7 @@ type Package struct {
 	ExternalMethods []string
 	Classes         []Class
 	Methods         []Method
-	Bindings        []Implementation
+	Implementations []Implementation
 	Relocations     []Relocation
 	Code            []byte
 }
@@ -33,17 +35,12 @@ type Implementation struct {
 	Class      ClassID
 	Method     MethodID
 	Kind       ImplKind
-	EntryPoint int32
-}
-
-type Binding struct {
-	ClassID    ClassID
-	EntryPoint int32
+	EntryPoint uint32
 }
 
 type Class struct {
 	Name   string
-	Fieldc int32
+	Fieldc uint32
 }
 
 type Visibility int32
@@ -63,7 +60,7 @@ type RelocationKind int32
 
 const (
 	_ RelocationKind = iota
-	ImportRel
+	GlobalRel
 	ClassRel
 	MethodRel
 	CodeRel
@@ -79,9 +76,10 @@ const (
 	LoadOp = iota
 	StoreOp
 	NaturalOp
-	BufferOp
-	GlobalOp
+	GlobalLoadOp
+	GlobalStoreOp
 	CreateOp
+	FieldOp
 	RetOp
 	CallOp
 )

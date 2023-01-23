@@ -44,28 +44,31 @@ func (p *Process) step() {
 		value := p.readInt()
 		p.value = Int(value)
 
-	case format.BufferOp:
-		start := p.readInt()
-		end := p.readInt()
-		p.value = p.bufferObject(start, end)
-
-	case format.GlobalOp:
+	case format.GlobalLoadOp:
 		globalID := p.readInt()
 		p.value = p.env.globals[globalID]
+
+	case format.GlobalStoreOp:
+		globalID := p.readInt()
+		p.env.globals[globalID] = p.value
 
 	case format.CreateOp:
 		classID := format.ClassID(p.readInt())
 		base := p.readByte()
 		p.value = p.env.memory.Alloc(classID, p.data[p.frame+base:])
 
+	case format.FieldOp:
+		field := p.readInt()
+		p.value = p.Field(p.value, field)
+
 	case format.RetOp:
 		p.ret()
 
 	case format.CallOp:
-		offset := format.MethodID(p.readInt())
+		methodId := p.readInt()
 		base := p.readByte()
 		p.frame += base
-		p.callMethod(offset)
+		p.callMethod(p.env.offsets[methodId])
 	}
 }
 
@@ -101,17 +104,13 @@ func (p *Process) readInt() int {
 	return b1 | b2<<8 | b3<<16 | b4<<24
 }
 
-func (p *Process) bufferObject(start, end int) api.Object {
-	return p.Create(bufferClass, Int(start), Int(end))
-}
-
 func (p *Process) ret() {
 	depth := AsInt(p.data[p.frame])
 	codePos := AsInt(p.data[p.frame+1])
 
-	// returning from the method will leave the current handler context
+	// reset the context, if required
 	if p.frame == p.context+2 {
-		p.context -= AsInt(p.data[p.frame-2])
+		p.context -= AsInt(p.data[p.context])
 	}
 
 	p.frame -= depth
@@ -119,27 +118,25 @@ func (p *Process) ret() {
 	p.codePos = codePos
 }
 
-func (p *Process) callMethod(offset format.MethodID) {
+func (p *Process) callMethod(offset int32) {
 	p.enterMethod(p.getMethod(p.value, offset))
 }
 
-func (p *Process) getMethod(object api.Object, id format.MethodID) *format.Binding {
-	idx := int(object.Class) + int(id)
-	if idx < 0 || idx >= len(p.env.methods) {
+func (p *Process) getMethod(object api.Object, offset int32) *format.Implementation {
+	idx := int(object.Class) + int(offset)
+	if idx < 0 || idx >= len(p.env.bindings) {
 		return nil
 	}
-	if p.env.methods[idx].ClassID != object.Class {
+	if p.env.bindings[idx].Class != object.Class {
 		return nil
 	}
-	return &p.env.methods[idx]
+	return &p.env.bindings[idx]
 }
 
-func (p *Process) enterMethod(method *format.Binding) {
-	kind := format.ImplKind(method.EntryPoint & 0b11)
-	pos := method.EntryPoint >> 2
-	if kind == format.ExternalBinding {
-		p.env.extern[pos](p)
+func (p *Process) enterMethod(method *format.Implementation) {
+	if method.Kind == format.ExternalBinding {
+		p.env.extern[method.EntryPoint](p)
 	} else {
-		p.codePos = int(pos)
+		p.codePos = int(method.EntryPoint)
 	}
 }

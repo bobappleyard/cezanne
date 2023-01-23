@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/bobappleyard/cezanne/assert"
 )
 
 func TestRead(t *testing.T) {

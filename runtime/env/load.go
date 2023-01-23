@@ -1,30 +1,23 @@
 package env
 
 import (
-	"io"
-
 	"github.com/bobappleyard/cezanne/format"
-	"github.com/bobappleyard/cezanne/format/storage"
+	"github.com/bobappleyard/cezanne/runtime/api"
 	"github.com/bobappleyard/cezanne/slices"
 )
 
 var externalMethods = map[string]func(*Process){}
 
-func Load(src io.ReaderAt) (*Env, error) {
-	var prog format.Program
-	err := storage.Read(src, &prog)
-	if err != nil {
-		return nil, err
-	}
-	extern := slices.Map(prog.ExternalMethods, func(n string) func(*Process) {
-		return externalMethods[n]
+func (e *Env) Load(ctx map[string]func(*Process), prog *format.Program) error {
+	e.globals = make([]api.Object, prog.GlobalCount)
+	e.extern = slices.Map(prog.ExternalMethods, func(n string) func(*Process) {
+		return ctx[n]
 	})
-	return &Env{
-		extern:  extern,
-		classes: prog.Classes,
-		methods: prog.Bindings,
-		code:    prog.Code,
-	}, nil
+	e.classes = prog.Classes
+	e.bindings = prog.Implmentations
+	e.offsets = prog.MethodOffsets
+	e.code = prog.Code
+	return nil
 }
 
 func (e *Env) Run() {
