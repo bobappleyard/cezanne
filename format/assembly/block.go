@@ -12,6 +12,7 @@ type Block struct {
 	bindings []format.Implementation
 	external []string
 	imports  []string
+	globals  int
 }
 
 type Value interface {
@@ -51,7 +52,7 @@ func (b *Block) GlobalLoad(id *Global) {
 }
 
 func (b *Block) GlobalStore(id *Global) {
-	b.writeByte(format.GlobalLoadOp)
+	b.writeByte(format.GlobalStoreOp)
 	id.write()
 }
 
@@ -173,20 +174,31 @@ func (c *Class) SetFields(count int) {
 }
 
 type Global struct {
-	b  *Block
-	id int
+	b    *Block
+	kind format.RelocationKind
+	id   int
 }
 
 func (l *Global) write() {
 	l.b.rels = append(l.b.rels, format.Relocation{
-		Kind: format.GlobalRel,
+		Kind: l.kind,
 		ID:   int32(l.id),
 		Pos:  int32(len(l.b.code)),
 	})
 	l.b.writeInt(0)
 }
 
-func (b *Block) Global(name string) *Global {
+func (b *Block) Global() *Global {
+	id := b.globals
+	b.globals++
+	return &Global{
+		b:    b,
+		kind: format.GlobalRel,
+		id:   id,
+	}
+}
+
+func (b *Block) Import(name string) *Global {
 	var id int
 	b.imports, id = ensure(b.imports, func(x string) bool {
 		return x == name
@@ -194,8 +206,9 @@ func (b *Block) Global(name string) *Global {
 		return name
 	})
 	return &Global{
-		b:  b,
-		id: id,
+		b:    b,
+		kind: format.ImportRel,
+		id:   id,
 	}
 }
 

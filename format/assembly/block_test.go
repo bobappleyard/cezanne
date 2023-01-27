@@ -15,12 +15,12 @@ func TestSimpleInstructions(t *testing.T) {
 	b.Return()
 
 	p := b.Package()
-	assert.Equal(t, []byte{
+	assert.Equal(t, p.Code, []byte{
 		format.LoadOp, 1,
 		format.StoreOp, 2,
 		format.NaturalOp, 3, 0, 0, 0,
 		format.RetOp,
-	}, p.Code)
+	})
 }
 
 func TestLocation(t *testing.T) {
@@ -38,32 +38,46 @@ func TestLocation(t *testing.T) {
 	end.Define()
 
 	p := b.Package()
-	assert.Equal(t, []byte{
+	assert.Equal(t, p.Code, []byte{
 		format.NaturalOp, 0, 0, 0, 0,
 		format.StoreOp, 1,
 		format.NaturalOp, 0, 0, 0, 0,
 		format.StoreOp, 2,
 		format.NaturalOp, 3, 0, 0, 0,
-	}, p.Code)
+	})
 	assert.Equal(t, p.Relocations, []format.Relocation{
 		{Kind: format.CodeRel, ID: 14, Pos: 1},
 		{Kind: format.CodeRel, ID: 19, Pos: 8},
 	})
 }
 
+func TestGlobal(t *testing.T) {
+	var b Block
+
+	b.GlobalLoad(b.Global())
+
+	p := b.Package()
+	assert.Equal(t, p.Code, []byte{
+		format.GlobalLoadOp, 0, 0, 0, 0,
+	})
+	assert.Equal(t, p.Relocations, []format.Relocation{
+		{Kind: format.GlobalRel, ID: 0, Pos: 1},
+	})
+}
+
 func TestImport(t *testing.T) {
 	var b Block
 
-	b.GlobalLoad(b.Global("fmt"))
+	b.GlobalLoad(b.Import("fmt"))
 
 	p := b.Package()
-	assert.Equal(t, []byte{
+	assert.Equal(t, p.Code, []byte{
 		format.GlobalLoadOp, 0, 0, 0, 0,
-	}, p.Code)
-	assert.Equal(t, []string{"fmt"}, p.Imports)
-	assert.Equal(t, []format.Relocation{
-		{Kind: format.GlobalRel, ID: 0, Pos: 1},
-	}, p.Relocations)
+	})
+	assert.Equal(t, p.Imports, []string{"fmt"})
+	assert.Equal(t, p.Relocations, []format.Relocation{
+		{Kind: format.ImportRel, ID: 0, Pos: 1},
+	})
 }
 
 func TestClass(t *testing.T) {
@@ -72,15 +86,15 @@ func TestClass(t *testing.T) {
 	b.Create(b.Class("Point"), 2)
 
 	p := b.Package()
-	assert.Equal(t, []byte{
+	assert.Equal(t, p.Code, []byte{
 		format.CreateOp, 0, 0, 0, 0, 2,
-	}, p.Code)
-	assert.Equal(t, []format.Class{{
+	})
+	assert.Equal(t, p.Classes, []format.Class{{
 		Name: "Point",
-	}}, p.Classes)
-	assert.Equal(t, []format.Relocation{
+	}})
+	assert.Equal(t, p.Relocations, []format.Relocation{
 		{Kind: format.ClassRel, ID: 0, Pos: 1},
-	}, p.Relocations)
+	})
 }
 
 func TestMethod(t *testing.T) {
@@ -89,16 +103,16 @@ func TestMethod(t *testing.T) {
 	b.Call(b.Method("add"), 4)
 
 	p := b.Package()
-	assert.Equal(t, []byte{
+	assert.Equal(t, p.Code, []byte{
 		format.CallOp, 0, 0, 0, 0, 4,
-	}, p.Code)
-	assert.Equal(t, []format.Method{{
+	})
+	assert.Equal(t, p.Methods, []format.Method{{
 		Name:       "add",
 		Visibility: format.Public,
-	}}, p.Methods)
-	assert.Equal(t, []format.Relocation{
+	}})
+	assert.Equal(t, p.Relocations, []format.Relocation{
 		{Kind: format.MethodRel, ID: 0, Pos: 1},
-	}, p.Relocations)
+	})
 }
 
 func TestBinding(t *testing.T) {
@@ -109,9 +123,9 @@ func TestBinding(t *testing.T) {
 	b.ImplementMethod(b.Class("MainPackage"), b.Method("main"))
 
 	p := b.Package()
-	assert.Equal(t, []format.Implementation{{
+	assert.Equal(t, p.Implementations, []format.Implementation{{
 		Kind:       format.StandardBinding,
 		EntryPoint: 12,
-	}}, p.Implementations)
+	}})
 
 }

@@ -14,9 +14,13 @@ func Equal[T any](t testing.TB, got, expected T) {
 
 func Nil(t testing.TB, got any) {
 	t.Helper()
-	if got != nil {
-		t.Errorf("got %v, expecting nil", got)
+	if got == nil {
+		return
 	}
+	if reflect.ValueOf(got).IsNil() {
+		return
+	}
+	t.Errorf("got %v, expecting nil", got)
 }
 
 func True(t testing.TB, got bool) {
