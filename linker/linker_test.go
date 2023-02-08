@@ -44,25 +44,26 @@ func TestLink(t *testing.T) {
 	assert.Nil(t, err)
 	t.Log(prog)
 
+	e := new(env.Env)
+	e.SetHeapSize(32)
+
 	var res api.Object
-	ext := map[string]func(*env.Process){
-		"test:result": func(p *env.Process) {
-			res = p.Arg(0)
-			p.Return(env.Int(0))
-		},
-		"core:int_add": func(p *env.Process) {
-			p.Return(env.Int(env.AsInt(p.Arg(0)) + env.AsInt(p.Arg(1))))
-		},
-	}
-	e := env.New(32)
-	e.Load(ext, prog)
-	e.Run()
+	e.AddExternalMethod("test:result", func(p *env.Thread, recv api.Object) {
+		res = p.Arg(0)
+		p.Return(env.Int(0))
+	})
+
+	e.AddExternalMethod("core:int_add", func(p *env.Thread, recv api.Object) {
+		p.Return(env.Int(env.AsInt(p.Arg(0)) + env.AsInt(p.Arg(1))))
+	})
+
+	e.Run(prog)
 
 	assert.Equal(t, res, env.Int(10))
 }
 
 func mainPackage() *format.Package {
-	var b assembly.Block
+	var b assembly.Package
 
 	k := b.Location()
 	core := b.Global()
@@ -86,12 +87,14 @@ func mainPackage() *format.Package {
 }
 
 func depPackage() *format.Package {
-	var b assembly.Block
+	var b assembly.Package
 
-	b.Create(b.Class("Package"), 0)
+	pkg := b.Class(0)
+
+	b.Create(pkg, 0)
 	b.Return()
 
-	b.ImplementMethod(b.Class("Package"), b.Method("add5"))
+	b.ImplementMethod(pkg, b.Method("add5"))
 	b.Natural(b.Fixed(5))
 	b.Store(3)
 	b.GlobalLoad(b.Import("core"))
@@ -101,13 +104,15 @@ func depPackage() *format.Package {
 }
 
 func corePackage() *format.Package {
-	var b assembly.Block
+	var b assembly.Package
 
-	b.Create(b.Class("Package"), 0)
+	pkg := b.Class(0)
+
+	b.Create(pkg, 0)
 	b.Return()
 
-	b.ImplementExternalMethod(b.Class("Package"), b.Method("result"), "test:result")
-	b.ImplementExternalMethod(b.Class("Package"), b.Method("int_add"), "core:int_add")
+	b.ImplementExternalMethod(pkg, b.Method("result"), "test:result")
+	b.ImplementExternalMethod(pkg, b.Method("int_add"), "core:int_add")
 
 	return b.Package()
 }

@@ -34,16 +34,19 @@ func TestRegexCompilation(t *testing.T) {
 		text string
 	}
 
-	p, err := NewLexer(Regex(`(abc*)+`, func(start int, text string) testTok {
+	p, err := NewLexer(Regex(`d(abc*)+`, func(start int, text string) testTok {
 		return testTok{text: text}
 	}))
 
 	assert.Nil(t, err)
 
-	l := p.Tokenize([]byte("ababcc"))
+	l := p.Tokenize([]byte("dababccdab"))
 
 	assert.True(t, l.Next())
-	assert.Equal(t, testTok{"ababcc"}, l.This())
+	assert.Equal(t, testTok{"dababcc"}, l.This())
+	assert.True(t, l.Next())
+	assert.Equal(t, testTok{"dab"}, l.This())
+	assert.False(t, l.Next())
 }
 
 func TestParse(t *testing.T) {
@@ -68,9 +71,14 @@ func TestParse(t *testing.T) {
 			out:  match{start: '(', end: '('},
 		},
 		{
+			name: "Named",
+			in:   `\n`,
+			out:  nest{match{start: '\n', end: '\n'}},
+		},
+		{
 			name: "Option",
 			in:   `a?`,
-			out: nest{e: choice{
+			out: nest{nested: choice{
 				left:  match{start: 'a', end: 'a'},
 				right: empty{},
 			}},
@@ -78,13 +86,13 @@ func TestParse(t *testing.T) {
 		{
 			name: "Option",
 			in:   `a+`,
-			out:  repeat{e: match{start: 'a', end: 'a'}},
+			out:  repeat{repeated: match{start: 'a', end: 'a'}},
 		},
 		{
 			name: "Option",
 			in:   `a*`,
 			out: nest{choice{
-				left:  repeat{e: match{start: 'a', end: 'a'}},
+				left:  repeat{repeated: match{start: 'a', end: 'a'}},
 				right: empty{},
 			}},
 		},
@@ -120,13 +128,13 @@ func TestParse(t *testing.T) {
 			in:   `ab+`,
 			out: seq{
 				left:  match{start: 'a', end: 'a'},
-				right: repeat{e: match{start: 'b', end: 'b'}},
+				right: repeat{repeated: match{start: 'b', end: 'b'}},
 			},
 		},
 		{
 			name: "Group",
 			in:   `(ab)+`,
-			out: repeat{nest{e: seq{
+			out: repeat{nest{nested: seq{
 				left:  match{start: 'a', end: 'a'},
 				right: match{start: 'b', end: 'b'},
 			}}},
@@ -143,6 +151,22 @@ func TestParse(t *testing.T) {
 				left:  match{start: 'a', end: 'a'},
 				right: match{start: 'b', end: 'b'},
 			}},
+		},
+		{
+			name: "CharsetMetas",
+			in:   `[|+.]`,
+			out: nest{choice{
+				left: choice{
+					left:  match{start: '|', end: '|'},
+					right: match{start: '+', end: '+'},
+				},
+				right: match{start: '.', end: '.'}},
+			},
+		},
+		{
+			name: "CharsetNamed",
+			in:   `[\n]`,
+			out:  nest{match{start: '\n', end: '\n'}},
 		},
 		{
 			name: "CharsetRange",
@@ -168,9 +192,9 @@ func TestParse(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			toks := regexProg.Tokenize([]byte(test.in))
-			expr, err := Parse[token, expr](new(regexRules), toks)
+			expr, err := Parse[token, expr](regexGrammar, toks)
 			assert.Nil(t, err)
-			assert.Equal(t, test.out, expr)
+			assert.Equal(t, expr, test.out)
 		})
 	}
 }

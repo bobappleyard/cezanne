@@ -12,7 +12,7 @@ func Regex[T any](re string, yield func(start int, text string) T) TokenSpec[T] 
 		l.Final(end, yield)
 
 		s := regexProg.Tokenize([]byte(re))
-		e, err := Parse[token, expr](&regexRules{namedExprs}, s)
+		e, err := Parse[token, expr](regexGrammar, s)
 		if err != nil {
 			return err
 		}
@@ -47,14 +47,14 @@ func (e repeat) compile(prog programOps, start, end LexerState) {
 	prog.Empty(start, s1)
 	prog.Empty(s2, s1)
 	prog.Empty(s2, end)
-	e.e.compile(prog, s1, s2)
+	e.repeated.compile(prog, s1, s2)
 }
 
 func (e nest) compile(prog programOps, start, end LexerState) {
-	e.e.compile(prog, start, end)
+	e.nested.compile(prog, start, end)
 }
 
-var namedExprs = map[rune]charset{
+var regexGrammar = &regexRules{map[rune]charset{
 	'n': {ranges: []match{
 		{start: '\n', end: '\n'},
 	}},
@@ -78,7 +78,7 @@ var namedExprs = map[rune]charset{
 	'd': {ranges: []match{
 		{start: '0', end: '9'},
 	}},
-}
+}}
 
 type token interface {
 	token()
@@ -197,11 +197,11 @@ type choice struct {
 }
 
 type repeat struct {
-	e term
+	repeated term
 }
 
 type nest struct {
-	e expr
+	nested expr
 }
 
 func (choice) expr() {}
@@ -255,9 +255,9 @@ func (r *regexRules) ParseQuantifier(e term, q quantity) run {
 	case '?':
 		return nest{choice{left: e.(run), right: empty{}}}
 	case '+':
-		return repeat{e: e}
+		return repeat{repeated: e}
 	case '*':
-		return nest{choice{left: repeat{e: e}, right: empty{}}}
+		return nest{choice{left: repeat{repeated: e}, right: empty{}}}
 	}
 	panic("unreachable")
 }

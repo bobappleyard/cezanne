@@ -97,6 +97,9 @@ func (l *linker) importPackage(path string) error {
 	}
 
 	for _, q := range p.Imports {
+		if q == "." {
+			continue
+		}
 		err := l.importPackage(q)
 		if err != nil {
 			return err
@@ -110,7 +113,7 @@ func (l *linker) importPackage(path string) error {
 	l.program.Classes = append(l.program.Classes, format.Class{Name: "PackageInit"})
 
 	l.addPackageEntry(class)
-	l.appendPackage(p)
+	l.appendPackage(p, global)
 
 	l.imports[path].global = global
 	l.imports[path].class = class
@@ -118,8 +121,8 @@ func (l *linker) importPackage(path string) error {
 	return nil
 }
 
-func (l *linker) appendPackage(p *format.Package) {
-	l.processRelocations(p)
+func (l *linker) appendPackage(p *format.Package, pkgGlob int32) {
+	l.processRelocations(p, pkgGlob)
 	l.processBindings(p)
 	l.program.ExternalMethods = append(l.program.ExternalMethods, p.ExternalMethods...)
 	l.program.Classes = append(l.program.Classes, p.Classes...)
@@ -163,7 +166,7 @@ func (l *linker) addPkgInitCode(p *importedPackage) {
 	writeInt32(l.program.Code[initPos+27:], p.global)
 }
 
-func (l *linker) processRelocations(p *format.Package) {
+func (l *linker) processRelocations(p *format.Package, pkgGlob int32) {
 	var glob int32 = -1
 	for _, rel := range p.Relocations {
 		switch rel.Kind {
@@ -171,7 +174,7 @@ func (l *linker) processRelocations(p *format.Package) {
 			rel.ID += int32(len(l.program.Classes))
 
 		case format.ImportRel:
-			id := l.imports[p.Imports[rel.ID]].global
+			id := l.importGlobal(p.Imports[rel.ID], pkgGlob)
 			rel.ID = id
 
 		case format.GlobalRel:
@@ -189,6 +192,13 @@ func (l *linker) processRelocations(p *format.Package) {
 		writeInt32(p.Code[rel.Pos:], rel.ID)
 	}
 	l.program.GlobalCount += glob + 1
+}
+
+func (l *linker) importGlobal(name string, pkgGlob int32) int32 {
+	if name == "." {
+		return pkgGlob
+	}
+	return l.imports[name].global
 }
 
 func (l *linker) processBindings(p *format.Package) {
@@ -220,10 +230,10 @@ func (l *linker) method(name string) *method {
 }
 
 func (l *linker) determineOffsets() {
-	offsets := make([]int32, len(l.methods))
+	methods := make([]format.Method, len(l.methods))
 	var space []format.Implementation
 
-	for _, m := range l.methods {
+	for n, m := range l.methods {
 		slices.SortFunc(m.impls, func(l, r format.Implementation) bool {
 			return l.Class < r.Class
 		})
@@ -231,12 +241,15 @@ func (l *linker) determineOffsets() {
 			continue
 		}
 		offset := findOffset(space, m)
-		offsets[m.id] = offset
+		methods[m.id] = format.Method{
+			Name:   n,
+			Offset: offset,
+		}
 		space = l.applyOffset(space, m, offset)
 	}
 
 	l.program.Implmentations = space
-	l.program.MethodOffsets = offsets
+	l.program.Methods = methods
 }
 
 func findOffset(space []format.Implementation, m *method) int32 {

@@ -6,6 +6,10 @@ import (
 
 type LexerState int
 
+// Lexer is a simple Thompson-style NFA.
+//
+// It maintains a description of a state machine where movement between states is driven by reading
+// an input text.
 type Lexer[T any] struct {
 	closeTransitions []closeTransition
 	moveTransitions  []moveTransition
@@ -69,6 +73,7 @@ func (p *Lexer[T]) Range(given, then LexerState, min, max rune) {
 func (p *Lexer[T]) Empty(given, then LexerState) {
 	var pending []closeTransition
 	for _, t := range p.closeTransitions {
+		// avoid adding duplicates
 		if t.Given == given && t.Then == then {
 			return
 		}
@@ -111,12 +116,10 @@ func (p *Lexer[T]) Tokenize(src []byte) *Stream[T] {
 	}
 }
 
-// Err implements TokenStream
 func (l *Stream[T]) Err() error {
 	return l.err
 }
 
-// Next implements TokenStream
 func (l *Stream[T]) Next() bool {
 	if l.err != nil {
 		return false
@@ -124,12 +127,11 @@ func (l *Stream[T]) Next() bool {
 	return l.exec()
 }
 
-// This implements TokenStream
 func (l *Stream[T]) This() T {
 	return l.tok
 }
 
-func (l *Stream[This]) exec() bool {
+func (l *Stream[T]) exec() bool {
 	pos := l.srcPos
 	start := pos
 	end := pos

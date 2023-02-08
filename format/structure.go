@@ -7,7 +7,7 @@ type Program struct {
 	ExternalMethods []string
 	GlobalCount     int32
 	Classes         []Class
-	MethodOffsets   []int32
+	Methods         []Method
 	Implmentations  []Implementation
 	Code            []byte
 }
@@ -54,6 +54,7 @@ const (
 type Method struct {
 	Visibility Visibility
 	Name       string
+	Offset     int32
 }
 
 type RelocationKind int32

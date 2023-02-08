@@ -11,12 +11,12 @@ func TestParseFile(t *testing.T) {
 	for _, test := range []struct {
 		name string
 		in   string
-		out  ast.Module
+		out  ast.Package
 	}{
 		{
 			name: "IntLit",
 			in:   `func main() {1}`,
-			out: ast.Module{
+			out: ast.Package{
 				Funcs: []ast.Method{{
 					Name: "main",
 					Body: ast.Int{Value: 1},
@@ -33,7 +33,7 @@ func TestParseFile(t *testing.T) {
 					}
 				}
 				`,
-			out: ast.Module{
+			out: ast.Package{
 				Funcs: []ast.Method{{
 					Name: "main",
 					Body: ast.Create{
@@ -57,7 +57,7 @@ func TestParseFile(t *testing.T) {
 					)
 				}
 			`,
-			out: ast.Module{
+			out: ast.Package{
 				Funcs: []ast.Method{{
 					Name: "main",
 					Body: ast.Invoke{
@@ -73,7 +73,7 @@ func TestParseFile(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			var m ast.Module
+			var m ast.Package
 			err := ParseFile(&m, []byte(test.in))
 			assert.Nil(t, err)
 			assert.Equal(t, test.out, m)
@@ -82,7 +82,7 @@ func TestParseFile(t *testing.T) {
 }
 
 func TestFullParse(t *testing.T) {
-	var m ast.Module
+	var m ast.Package
 	err := ParseFile(&m, []byte(`
 	func main() {
 		handle trigger Write(2) {
@@ -91,7 +91,7 @@ func TestFullParse(t *testing.T) {
 	}
 	`))
 	assert.Nil(t, err)
-	assert.Equal(t, ast.Module{
+	assert.Equal(t, ast.Package{
 		Funcs: []ast.Method{{
 			Name: "main",
 			Body: ast.Handle{

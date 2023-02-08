@@ -8,7 +8,7 @@ import (
 )
 
 func TestSimpleInstructions(t *testing.T) {
-	var b Block
+	var b Package
 	b.Load(1)
 	b.Store(2)
 	b.Natural(b.Fixed(3))
@@ -24,7 +24,7 @@ func TestSimpleInstructions(t *testing.T) {
 }
 
 func TestLocation(t *testing.T) {
-	var b Block
+	var b Package
 
 	start := b.Location()
 	end := b.Location()
@@ -52,7 +52,7 @@ func TestLocation(t *testing.T) {
 }
 
 func TestGlobal(t *testing.T) {
-	var b Block
+	var b Package
 
 	b.GlobalLoad(b.Global())
 
@@ -66,7 +66,7 @@ func TestGlobal(t *testing.T) {
 }
 
 func TestImport(t *testing.T) {
-	var b Block
+	var b Package
 
 	b.GlobalLoad(b.Import("fmt"))
 
@@ -81,24 +81,22 @@ func TestImport(t *testing.T) {
 }
 
 func TestClass(t *testing.T) {
-	var b Block
+	var b Package
 
-	b.Create(b.Class("Point"), 2)
+	b.Create(b.Class(0), 2)
 
 	p := b.Package()
 	assert.Equal(t, p.Code, []byte{
 		format.CreateOp, 0, 0, 0, 0, 2,
 	})
-	assert.Equal(t, p.Classes, []format.Class{{
-		Name: "Point",
-	}})
+	assert.Equal(t, p.Classes, []format.Class{{}})
 	assert.Equal(t, p.Relocations, []format.Relocation{
 		{Kind: format.ClassRel, ID: 0, Pos: 1},
 	})
 }
 
 func TestMethod(t *testing.T) {
-	var b Block
+	var b Package
 
 	b.Call(b.Method("add"), 4)
 
@@ -116,11 +114,13 @@ func TestMethod(t *testing.T) {
 }
 
 func TestBinding(t *testing.T) {
-	var b Block
+	var b Package
 
-	b.Create(b.Class("MainPackage"), 0)
+	mainPackage := b.Class(0)
+
+	b.Create(mainPackage, 0)
 	b.Call(b.Method("main"), 0)
-	b.ImplementMethod(b.Class("MainPackage"), b.Method("main"))
+	b.ImplementMethod(mainPackage, b.Method("main"))
 
 	p := b.Package()
 	assert.Equal(t, p.Implementations, []format.Implementation{{

@@ -6,14 +6,21 @@ import (
 	"github.com/bobappleyard/cezanne/assert"
 	"github.com/bobappleyard/cezanne/format"
 	"github.com/bobappleyard/cezanne/runtime/api"
+	"github.com/bobappleyard/cezanne/runtime/memory"
 )
 
+func newTestProc() *Process {
+	p := &Process{}
+	p.memory = memory.NewArena(p, 32)
+	return p
+}
+
 func TestLoad(t *testing.T) {
-	e := New(32)
+	e := newTestProc()
 	e.code = []byte{
 		format.LoadOp, 0,
 	}
-	p := &Process{env: e}
+	p := &Thread{process: e}
 	p.data[0] = Int(25)
 
 	p.step()
@@ -22,11 +29,11 @@ func TestLoad(t *testing.T) {
 }
 
 func TestStore(t *testing.T) {
-	e := New(32)
+	e := newTestProc()
 	e.code = []byte{
 		format.StoreOp, 0,
 	}
-	p := &Process{env: e}
+	p := &Thread{process: e}
 	p.value = Int(25)
 
 	p.step()
@@ -35,11 +42,11 @@ func TestStore(t *testing.T) {
 }
 
 func TestNatural(t *testing.T) {
-	e := New(32)
+	e := newTestProc()
 	e.code = []byte{
 		format.NaturalOp, 25, 0, 0, 0,
 	}
-	p := &Process{env: e}
+	p := &Thread{process: e}
 
 	p.step()
 
@@ -47,7 +54,7 @@ func TestNatural(t *testing.T) {
 }
 
 func TestLoadGlobal(t *testing.T) {
-	e := New(32)
+	e := newTestProc()
 	e.code = []byte{
 		format.GlobalLoadOp, 0, 0, 0, 0,
 	}
@@ -55,7 +62,7 @@ func TestLoadGlobal(t *testing.T) {
 		Int(5),
 	}
 
-	p := &Process{env: e}
+	p := &Thread{process: e}
 
 	p.step()
 
@@ -63,13 +70,13 @@ func TestLoadGlobal(t *testing.T) {
 }
 
 func TestStoreGlobal(t *testing.T) {
-	e := New(32)
+	e := newTestProc()
 	e.code = []byte{
 		format.GlobalStoreOp, 0, 0, 0, 0,
 	}
 	e.globals = make([]api.Object, 1)
 
-	p := &Process{env: e}
+	p := &Thread{process: e}
 	p.value = Int(25)
 	p.step()
 
@@ -77,7 +84,7 @@ func TestStoreGlobal(t *testing.T) {
 }
 
 func TestCreate(t *testing.T) {
-	e := New(32)
+	e := newTestProc()
 	e.code = []byte{
 		format.CreateOp, 0, 0, 0, 0, 0,
 	}
@@ -85,7 +92,7 @@ func TestCreate(t *testing.T) {
 		{Fieldc: 1},
 	}
 
-	p := &Process{env: e}
+	p := &Thread{process: e}
 	p.data[0] = Int(4)
 
 	p.step()
@@ -95,12 +102,12 @@ func TestCreate(t *testing.T) {
 }
 
 func TestRet(t *testing.T) {
-	e := New(32)
+	e := newTestProc()
 	e.code = []byte{
 		format.RetOp,
 	}
 
-	p := &Process{env: e}
+	p := &Thread{process: e}
 	p.data[0] = Int(1)
 	p.data[1] = Int(10)
 
@@ -111,7 +118,7 @@ func TestRet(t *testing.T) {
 }
 
 func TestCall(t *testing.T) {
-	e := New(32)
+	e := newTestProc()
 	e.code = []byte{
 		format.CallOp, 0, 0, 0, 0, 0,
 	}
@@ -119,9 +126,9 @@ func TestCall(t *testing.T) {
 		{EntryPoint: 10},
 	}
 	e.classes = []format.Class{{}}
-	e.offsets = []int32{0}
-	p := &Process{env: e}
-	p.value = p.env.memory.Alloc(0, nil)
+	e.methods = []format.Method{{}}
+	p := &Thread{process: e}
+	p.value = p.process.memory.Alloc(0, nil)
 
 	p.step()
 
@@ -129,7 +136,7 @@ func TestCall(t *testing.T) {
 }
 
 func TestRun(t *testing.T) {
-	e := New(32)
+	e := newTestProc()
 	e.code = []byte{
 		format.GlobalLoadOp, 0, 0, 0, 0,
 		format.CallOp, 0, 0, 0, 0, 0,
@@ -154,14 +161,14 @@ func TestRun(t *testing.T) {
 		format.CallOp, 2, 0, 0, 0, 0,
 	}
 	e.classes = make([]format.Class, 2)
-	e.offsets = []int32{0, 1, 1}
+	e.methods = []format.Method{{Offset: 0}, {Offset: 1}, {Offset: 1}}
 	e.bindings = []format.Implementation{
 		{EntryPoint: 100, Kind: format.StandardBinding},
 		{EntryPoint: 50, Kind: format.StandardBinding},
 		{Class: 1, EntryPoint: 0, Kind: format.ExternalBinding},
 	}
-	e.extern = []func(*Process){
-		func(p *Process) {
+	e.extern = []func(p *Thread, recv api.Object){
+		func(p *Thread, recv api.Object) {
 			left := AsInt(p.Arg(0))
 			right := AsInt(p.Arg(1))
 			p.Return(Int(left + right))
@@ -171,7 +178,7 @@ func TestRun(t *testing.T) {
 		e.memory.Alloc(0, nil),
 		e.memory.Alloc(1, nil),
 	}
-	p := &Process{env: e}
+	p := &Thread{process: e}
 
 	p.run()
 

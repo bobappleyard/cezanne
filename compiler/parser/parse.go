@@ -5,7 +5,7 @@ import (
 	"github.com/bobappleyard/cezanne/compiler/text"
 )
 
-func ParseFile(m *ast.Module, src []byte) error {
+func ParseFile(m *ast.Package, src []byte) error {
 	st, err := text.Parse[token, file](parseRules{}, tokenize(src))
 	if err != nil {
 		return err

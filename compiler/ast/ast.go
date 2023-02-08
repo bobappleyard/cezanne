@@ -1,8 +1,19 @@
 package ast
 
-type Module struct {
+type Package struct {
+	Name    string
+	Imports []Import
+	Funcs   []Method
+	Vars    []Var
+}
+
+type Import struct {
+	Name, Path string
+}
+
+type Var struct {
 	Name  string
-	Funcs []Method
+	Value Expr
 }
 
 type Expr interface {
