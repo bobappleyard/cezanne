@@ -4,7 +4,7 @@ import (
 	"github.com/bobappleyard/cezanne/format"
 )
 
-type Package struct {
+type Writer struct {
 	code     []byte
 	rels     []format.Relocation
 	methods  []format.Method
@@ -12,14 +12,13 @@ type Package struct {
 	bindings []format.Implementation
 	external []string
 	imports  []string
-	globals  int
 }
 
 type Value interface {
 	write()
 }
 
-func (b *Package) Package() *format.Package {
+func (b *Writer) Package() *format.Package {
 	return &format.Package{
 		ExternalMethods: b.external,
 		Imports:         b.imports,
@@ -31,57 +30,57 @@ func (b *Package) Package() *format.Package {
 	}
 }
 
-func (b *Package) Load(id int) {
+func (b *Writer) Load(id int) {
 	b.writeByte(format.LoadOp)
 	b.writeByte(id)
 }
 
-func (b *Package) Store(id int) {
+func (b *Writer) Store(id int) {
 	b.writeByte(format.StoreOp)
 	b.writeByte(id)
 }
 
-func (b *Package) Natural(value Value) {
+func (b *Writer) Natural(value Value) {
 	b.writeByte(format.NaturalOp)
 	value.write()
 }
 
-func (b *Package) GlobalLoad(id *Global) {
+func (b *Writer) GlobalLoad(id *Global) {
 	b.writeByte(format.GlobalLoadOp)
 	id.write()
 }
 
-func (b *Package) GlobalStore(id *Global) {
+func (b *Writer) GlobalStore(id *Global) {
 	b.writeByte(format.GlobalStoreOp)
 	id.write()
 }
 
-func (b *Package) Create(id *Class, base int) {
+func (b *Writer) Create(id *Class, base int) {
 	b.writeByte(format.CreateOp)
 	id.write()
 	b.writeByte(base)
 }
 
-func (b *Package) Field(id int) {
+func (b *Writer) Field(id int) {
 	b.writeByte(format.FieldOp)
 	b.writeInt(id)
 }
 
-func (b *Package) Return() {
+func (b *Writer) Return() {
 	b.writeByte(format.RetOp)
 }
 
-func (b *Package) Call(methodID *Method, base int) {
+func (b *Writer) Call(methodID *Method, base int) {
 	b.writeByte(format.CallOp)
 	methodID.write()
 	b.writeByte(base)
 }
 
-func (b *Package) writeByte(value int) {
+func (b *Writer) writeByte(value int) {
 	b.code = append(b.code, byte(value))
 }
 
-func (b *Package) writeInt(value int) {
+func (b *Writer) writeInt(value int) {
 	b.writeByte(value)
 	b.writeByte(value >> 8)
 	b.writeByte(value >> 16)
@@ -89,7 +88,7 @@ func (b *Package) writeInt(value int) {
 }
 
 type Location struct {
-	b    *Package
+	b    *Writer
 	refs []int
 	def  int
 }
@@ -114,14 +113,14 @@ func (l *Location) Define() {
 	l.refs = nil
 }
 
-func (b *Package) Location() *Location {
+func (b *Writer) Location() *Location {
 	return &Location{
 		b: b,
 	}
 }
 
 type Method struct {
-	b  *Package
+	b  *Writer
 	id format.MethodID
 }
 
@@ -134,7 +133,7 @@ func (l *Method) write() {
 	l.b.writeInt(0)
 }
 
-func (b *Package) Method(name string) *Method {
+func (b *Writer) Method(name string) *Method {
 	var id int
 	b.methods, id = ensure(b.methods, func(x format.Method) bool {
 		return x.Name == name
@@ -148,7 +147,7 @@ func (b *Package) Method(name string) *Method {
 }
 
 type Class struct {
-	b  *Package
+	b  *Writer
 	id format.ClassID
 }
 
@@ -161,7 +160,7 @@ func (l *Class) write() {
 	l.b.writeInt(0)
 }
 
-func (b *Package) Class(fieldc int) *Class {
+func (b *Writer) Class(fieldc int) *Class {
 	id := len(b.classes)
 	b.classes = append(b.classes, format.Class{Fieldc: uint32(fieldc)})
 	return &Class{
@@ -175,7 +174,7 @@ func (c *Class) SetFields(count int) {
 }
 
 type Global struct {
-	b    *Package
+	b    *Writer
 	kind format.RelocationKind
 	id   int
 }
@@ -189,9 +188,7 @@ func (l *Global) write() {
 	l.b.writeInt(0)
 }
 
-func (b *Package) Global() *Global {
-	id := b.globals
-	b.globals++
+func (b *Writer) Global(id int) *Global {
 	return &Global{
 		b:    b,
 		kind: format.GlobalRel,
@@ -199,7 +196,7 @@ func (b *Package) Global() *Global {
 	}
 }
 
-func (b *Package) Import(name string) *Global {
+func (b *Writer) Import(name string) *Global {
 	var id int
 	b.imports, id = ensure(b.imports, func(x string) bool {
 		return x == name
@@ -214,7 +211,7 @@ func (b *Package) Import(name string) *Global {
 }
 
 type Fixed struct {
-	b     *Package
+	b     *Writer
 	value int
 }
 
@@ -222,14 +219,14 @@ func (l *Fixed) write() {
 	l.b.writeInt(l.value)
 }
 
-func (b *Package) Fixed(value int) *Fixed {
+func (b *Writer) Fixed(value int) *Fixed {
 	return &Fixed{
 		b:     b,
 		value: value,
 	}
 }
 
-func (b *Package) ImplementMethod(class *Class, method *Method) {
+func (b *Writer) ImplementMethod(class *Class, method *Method) {
 	b.bindings = append(b.bindings, format.Implementation{
 		Class:      class.id,
 		Method:     method.id,
@@ -238,7 +235,7 @@ func (b *Package) ImplementMethod(class *Class, method *Method) {
 	})
 }
 
-func (b *Package) ImplementExternalMethod(class *Class, method *Method, ext string) {
+func (b *Writer) ImplementExternalMethod(class *Class, method *Method, ext string) {
 	var entryPoint int
 	b.external, entryPoint = ensure(b.external, func(x string) bool {
 		return x == ext

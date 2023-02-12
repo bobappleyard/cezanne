@@ -8,7 +8,7 @@ import (
 )
 
 func TestSimpleInstructions(t *testing.T) {
-	var b Package
+	var b Writer
 	b.Load(1)
 	b.Store(2)
 	b.Natural(b.Fixed(3))
@@ -24,7 +24,7 @@ func TestSimpleInstructions(t *testing.T) {
 }
 
 func TestLocation(t *testing.T) {
-	var b Package
+	var b Writer
 
 	start := b.Location()
 	end := b.Location()
@@ -52,9 +52,9 @@ func TestLocation(t *testing.T) {
 }
 
 func TestGlobal(t *testing.T) {
-	var b Package
+	var b Writer
 
-	b.GlobalLoad(b.Global())
+	b.GlobalLoad(b.Global(0))
 
 	p := b.Package()
 	assert.Equal(t, p.Code, []byte{
@@ -66,7 +66,7 @@ func TestGlobal(t *testing.T) {
 }
 
 func TestImport(t *testing.T) {
-	var b Package
+	var b Writer
 
 	b.GlobalLoad(b.Import("fmt"))
 
@@ -81,7 +81,7 @@ func TestImport(t *testing.T) {
 }
 
 func TestClass(t *testing.T) {
-	var b Package
+	var b Writer
 
 	b.Create(b.Class(0), 2)
 
@@ -96,7 +96,7 @@ func TestClass(t *testing.T) {
 }
 
 func TestMethod(t *testing.T) {
-	var b Package
+	var b Writer
 
 	b.Call(b.Method("add"), 4)
 
@@ -114,7 +114,7 @@ func TestMethod(t *testing.T) {
 }
 
 func TestBinding(t *testing.T) {
-	var b Package
+	var b Writer
 
 	mainPackage := b.Class(0)
 

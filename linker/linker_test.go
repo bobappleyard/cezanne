@@ -63,11 +63,16 @@ func TestLink(t *testing.T) {
 }
 
 func mainPackage() *format.Package {
-	var b assembly.Package
+	var b assembly.Writer
 
 	k := b.Location()
-	core := b.Global()
+	core := b.Global(0)
+	pkg := b.Class(0)
 
+	b.Create(pkg, 0)
+	b.Return()
+
+	b.ImplementMethod(pkg, b.Method("main"))
 	b.GlobalLoad(b.Import("core"))
 	b.GlobalStore(core)
 	b.Natural(b.Fixed(2))
@@ -87,7 +92,7 @@ func mainPackage() *format.Package {
 }
 
 func depPackage() *format.Package {
-	var b assembly.Package
+	var b assembly.Writer
 
 	pkg := b.Class(0)
 
@@ -104,7 +109,7 @@ func depPackage() *format.Package {
 }
 
 func corePackage() *format.Package {
-	var b assembly.Package
+	var b assembly.Writer
 
 	pkg := b.Class(0)
 

@@ -8,24 +8,7 @@ import (
 func BuildPackage(pkg ast.Package) (*format.Package, error) {
 	var root method
 	pkgObject := interpretExpr(globalScope(pkg), &root, buildRoot(pkg))
-
-	if pkg.Name == "main" {
-		ret := root.nextVar()
-		root.steps = append(root.steps,
-			storeMainPackageStep{
-				object: pkgObject,
-			},
-			callStep{
-				object: pkgObject,
-				into:   ret,
-				method: "main",
-			},
-			returnStep{val: ret},
-		)
-	} else {
-		root.steps = append(root.steps,
-			returnStep{val: pkgObject})
-	}
+	root.steps = append(root.steps, returnStep{val: pkgObject})
 
 	var asm assembler
 	asm.writePackage(root)

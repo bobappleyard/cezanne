@@ -9,7 +9,7 @@ import (
 const baseRegister = 2
 
 type assembler struct {
-	dest    assembly.Package
+	dest    assembly.Writer
 	pending []pendingWork
 }
 
@@ -48,8 +48,12 @@ func (w *assembler) writeBlock(src method) {
 			w.dest.Field(s.field)
 			w.dest.Store(int(s.into) + baseRegister)
 
+		case globalStep:
+			w.dest.GlobalLoad(w.dest.Global(s.from))
+			w.dest.Store(int(s.into) + baseRegister)
+
 		case importStep:
-			w.dest.GlobalLoad(w.dest.Import(s.path))
+			w.dest.GlobalLoad(w.dest.Import(s.from))
 			w.dest.Store(int(s.into) + baseRegister)
 
 		case createStep:
@@ -66,9 +70,9 @@ func (w *assembler) writeBlock(src method) {
 			w.dest.Load(int(s.val) + baseRegister)
 			w.dest.Return()
 
-		case storeMainPackageStep:
+		case globalStoreStep:
 			w.dest.Load(int(s.object) + baseRegister)
-			w.dest.GlobalStore(w.dest.Import("."))
+			w.dest.GlobalStore(w.dest.Global(s.into))
 
 		case callStep:
 			if isTailCall(src.steps[p+1:], s.into) {

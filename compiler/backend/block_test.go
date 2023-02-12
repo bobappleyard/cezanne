@@ -22,7 +22,7 @@ func TestTailCall(t *testing.T) {
 
 	w.writeBlock(b)
 
-	expect := new(assembly.Package)
+	expect := new(assembly.Writer)
 	expect.Natural(expect.Fixed(1))
 	expect.Store(2)
 	expect.Natural(expect.Fixed(1))

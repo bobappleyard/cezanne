@@ -85,22 +85,3 @@ const (
 	RetOp
 	CallOp
 )
-
-var opNames = []string{
-	"LOAD",
-	"STORE",
-	"NATURAL",
-	"GLOAD",
-	"GSTORE",
-	"CREATE",
-	"FIELD",
-	"RET",
-	"CALL",
-}
-
-func OpName(op byte) string {
-	if op > CallOp {
-		return "?"
-	}
-	return opNames[op]
-}

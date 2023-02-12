@@ -73,10 +73,10 @@ func (l *linker) complete() *format.Program {
 	slices.SortFunc(packages, func(left, right *importedPackage) bool {
 		return left.global < right.global
 	})
-	for _, p := range packages[:len(packages)-1] {
+	for _, p := range packages {
 		l.addPkgInitCode(p)
 	}
-	l.addMainInitCode(l.imports["main"])
+	l.addMainInitCode()
 	l.determineOffsets()
 	return &l.program
 }
@@ -137,15 +137,16 @@ func (l *linker) addPackageEntry(packageClass format.ClassID) {
 	})
 }
 
-func (l *linker) addMainInitCode(p *importedPackage) {
+func (l *linker) addMainInitCode() {
 	initPos := len(l.program.Code)
 
 	l.program.Code = append(l.program.Code,
-		format.CreateOp, 0, 0, 0, 0, 0,
+		format.GlobalLoadOp, 0, 0, 0, 0,
 		format.CallOp, 0, 0, 0, 0, 0,
 	)
 
-	writeInt32(l.program.Code[initPos+1:], int32(p.class))
+	writeInt32(l.program.Code[initPos+1:], int32(l.imports["main"].global))
+	writeInt32(l.program.Code[initPos+6:], int32(l.methods["main"].id))
 }
 
 func (l *linker) addPkgInitCode(p *importedPackage) {

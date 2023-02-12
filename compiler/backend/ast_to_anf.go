@@ -105,7 +105,7 @@ func interpretLookup(s scope, dest *method, name string) variable {
 	case importBinding:
 		v := dest.nextVar()
 		dest.steps = append(dest.steps, importStep{
-			path: s.imports[b.offset],
+			from: s.imports[b.offset],
 			into: v,
 		})
 		return v

@@ -35,9 +35,19 @@ type fieldStep struct {
 	into  variable
 }
 
-type importStep struct {
-	path string
+type globalStep struct {
+	from int
 	into variable
+}
+
+type importStep struct {
+	from string
+	into variable
+}
+
+type globalStoreStep struct {
+	into   int
+	object variable
 }
 
 type createStep struct {
@@ -58,19 +68,16 @@ type callStep struct {
 }
 
 // hackety hack
-type storeMainPackageStep struct {
-	object variable
-}
-
-func (stringStep) step()           {}
-func (intStep) step()              {}
-func (localStep) step()            {}
-func (fieldStep) step()            {}
-func (importStep) step()           {}
-func (returnStep) step()           {}
-func (createStep) step()           {}
-func (callStep) step()             {}
-func (storeMainPackageStep) step() {}
+func (stringStep) step()      {}
+func (intStep) step()         {}
+func (localStep) step()       {}
+func (fieldStep) step()       {}
+func (globalStep) step()      {}
+func (importStep) step()      {}
+func (returnStep) step()      {}
+func (createStep) step()      {}
+func (callStep) step()        {}
+func (globalStoreStep) step() {}
 
 func (b *method) nextVar() variable {
 	res := variable(b.varc)

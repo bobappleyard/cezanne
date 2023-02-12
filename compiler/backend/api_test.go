@@ -147,7 +147,7 @@ func TestBuildPackage(t *testing.T) {
 }
 
 func testPkg() *format.Package {
-	var b assembly.Package
+	var b assembly.Writer
 
 	pkgClass := b.Class(0)
 
