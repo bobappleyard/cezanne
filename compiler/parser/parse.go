@@ -149,7 +149,7 @@ func (parseRules) ParseVarRef(x ident) varRef {
 	return varRef{x.name}
 }
 
-func (parseRules) ParseFunctionCall(
+func (parseRules) ParseMethodCall(
 	obj expr, d dot, name ident,
 	gro groupOpen, params paramList, grc groupClose,
 ) invokeMethod {
@@ -160,7 +160,7 @@ func (parseRules) ParseFunctionCall(
 	}
 }
 
-func (parseRules) ParseMethodCall(
+func (parseRules) ParseFunctionCall(
 	obj expr,
 	gro groupOpen, params paramList, grc groupClose,
 ) invokeMethod {

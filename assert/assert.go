@@ -8,7 +8,7 @@ import (
 func Equal[T any](t testing.TB, got, expected T) {
 	t.Helper()
 	if !reflect.DeepEqual(got, expected) {
-		t.Errorf("got %v, expected %v", got, expected)
+		t.Errorf("got %#v, expected %#v", got, expected)
 	}
 }
 

@@ -47,9 +47,71 @@ func TestParseFile(t *testing.T) {
 			},
 		},
 		{
+			name: "ObjectManyMethods",
+			in: `
+
+				func main() {
+					object {
+						true() { v }
+						false() { u }
+					}
+				}
+				`,
+			out: ast.Package{
+				Funcs: []ast.Method{{
+					Name: "main",
+					Body: ast.Create{
+						Methods: []ast.Method{
+							{
+								Name: "true",
+								Body: ast.Ref{Name: "v"},
+							},
+							{
+								Name: "false",
+								Body: ast.Ref{Name: "u"},
+							},
+						},
+					},
+				}},
+			},
+		},
+		{
+			name: "NestedObject",
+			in: `
+			func main() {
+				test.match(object {
+					true() {
+						1
+					}
+					false() {
+						2
+					}
+				})
+			}
+			`,
+			out: ast.Package{
+				Funcs: []ast.Method{{Name: "main", Body: ast.Invoke{
+					Object: ast.Ref{Name: "test"},
+					Name:   "match",
+					Args: []ast.Expr{
+						ast.Create{Methods: []ast.Method{
+							{
+								Name: "true",
+								Body: ast.Int{Value: 1},
+							},
+							{
+								Name: "false",
+								Body: ast.Int{Value: 2},
+							},
+						}},
+					},
+				}}},
+			},
+		},
+		{
 			name: "MultilineParams",
 			in: `
-			
+
 				func main() {
 					x.method(
 						1,
@@ -76,7 +138,7 @@ func TestParseFile(t *testing.T) {
 			var m ast.Package
 			err := ParseFile(&m, []byte(test.in))
 			assert.Nil(t, err)
-			assert.Equal(t, test.out, m)
+			assert.Equal(t, m, test.out)
 		})
 	}
 }

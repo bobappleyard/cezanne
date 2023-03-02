@@ -38,6 +38,12 @@ type Method struct {
 	Body Expr
 }
 
+type Let struct {
+	Name  string
+	Value Expr
+	In    Expr
+}
+
 type Invoke struct {
 	Object Expr
 	Name   string

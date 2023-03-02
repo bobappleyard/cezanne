@@ -19,6 +19,7 @@ type bindingKind int
 const (
 	missingBinding bindingKind = iota
 	globalBinding
+	globalMethodBinding
 	closureBinding
 	localBinding
 	importBinding
@@ -36,7 +37,7 @@ func (s scope) lookup(name string) binding {
 func (s scope) enter(bound, free []string) scope {
 	vars := map[string]binding{}
 	for v, b := range s.vars {
-		if b.kind != globalBinding && b.kind != importBinding {
+		if b.kind != globalBinding && b.kind != importBinding && b.kind != globalMethodBinding {
 			continue
 		}
 		vars[v] = b
@@ -81,6 +82,11 @@ func interpretExpr(s scope, dest *method, src ast.Expr) variable {
 		params := slices.Map(src.Args, func(arg ast.Expr) variable {
 			return interpretExpr(s, dest, arg)
 		})
+
+		if isGlobalMethodCall(s, src) {
+			return interpretGlobalMethodCall(s, dest, src.Object.(ast.Ref), params)
+		}
+
 		object := interpretExpr(s, dest, src.Object)
 		v := dest.nextVar()
 		dest.steps = append(dest.steps, callStep{
@@ -94,6 +100,29 @@ func interpretExpr(s scope, dest *method, src ast.Expr) variable {
 	default:
 		panic(fmt.Sprintf("unsupported syntax: %T", src))
 	}
+}
+
+func isGlobalMethodCall(s scope, src ast.Invoke) bool {
+	o, ok := src.Object.(ast.Ref)
+	return ok && src.Name == "call" && s.lookup(o.Name).kind == globalMethodBinding
+}
+
+func interpretGlobalMethodCall(s scope, dest *method, src ast.Ref, params []variable) variable {
+	u := dest.nextVar()
+	dest.steps = append(dest.steps, importStep{
+		path: ".",
+		into: u,
+	})
+
+	v := dest.nextVar()
+	dest.steps = append(dest.steps, callStep{
+		object: u,
+		method: src.Name,
+		params: params,
+		into:   v,
+	})
+
+	return v
 }
 
 func interpretLookup(s scope, dest *method, name string) variable {

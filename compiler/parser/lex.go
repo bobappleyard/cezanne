@@ -96,7 +96,7 @@ var lexicon = must.Be(text.NewLexer(
 
 type cezanneTokenizer struct {
 	src   stream.Iter[token]
-	depth int
+	scope []bool
 }
 
 // Err implements stream.Iter
@@ -140,7 +140,7 @@ func (t *cezanneTokenizer) This() token {
 }
 
 func (t *cezanneTokenizer) isNewline() bool {
-	if t.depth > 0 {
+	if len(t.scope) > 0 && !t.scope[len(t.scope)-1] {
 		return false
 	}
 	tok, ok := t.src.This().(whitespace)
@@ -150,9 +150,13 @@ func (t *cezanneTokenizer) isNewline() bool {
 func (t *cezanneTokenizer) isIgnored() bool {
 	switch t.src.This().(type) {
 	case groupOpen:
-		t.depth++
-	case groupClose:
-		t.depth--
+		t.scope = append(t.scope, false)
+	case blockOpen:
+		t.scope = append(t.scope, true)
+	case groupClose, blockClose:
+		if len(t.scope) > 0 {
+			t.scope = t.scope[:len(t.scope)-1]
+		}
 	case comment:
 		return true
 	case whitespace:

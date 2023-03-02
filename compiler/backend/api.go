@@ -32,5 +32,10 @@ func globalScope(pkg ast.Package) scope {
 		}
 		imports = append(imports, v.Path)
 	}
+	for _, m := range pkg.Funcs {
+		vars[m.Name] = binding{
+			kind: globalMethodBinding,
+		}
+	}
 	return scope{vars: vars, imports: imports}
 }

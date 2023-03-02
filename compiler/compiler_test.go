@@ -1,4 +1,4 @@
-package backend
+package compiler
 
 import (
 	"fmt"
@@ -6,6 +6,8 @@ import (
 
 	"github.com/bobappleyard/cezanne/assert"
 	"github.com/bobappleyard/cezanne/compiler/ast"
+	"github.com/bobappleyard/cezanne/compiler/backend"
+	"github.com/bobappleyard/cezanne/compiler/parser"
 	"github.com/bobappleyard/cezanne/format"
 	"github.com/bobappleyard/cezanne/format/assembly"
 	"github.com/bobappleyard/cezanne/linker"
@@ -24,87 +26,41 @@ func (e testLinkerEnv) LoadPackage(path string) (*format.Package, error) {
 	return pkg, nil
 }
 
-func TestBuildPackage(t *testing.T) {
+func TestCompiler(t *testing.T) {
+	var pt ast.Package
+	pt.Name = "main"
+	pt.Imports = append(pt.Imports, ast.Import{Name: "test", Path: "test"})
 
-	pkg, err := BuildPackage(ast.Package{
-		Name: "main",
-		Imports: []ast.Import{
-			{Name: "test", Path: "test"},
-		},
-		Funcs: []ast.Method{
-			{
-				Name: "main",
-				Body: ast.Invoke{
-					Object: ast.Ref{Name: "test"},
-					Name:   "print",
-					Args: []ast.Expr{
-						ast.Invoke{
-							Object: ast.Ref{Name: "fac"},
-							Name:   "call",
-							Args:   []ast.Expr{ast.Int{Value: 4}},
-						},
-					},
-				},
-			},
-			{
-				Name: "fac",
-				Args: []string{"x"},
-				Body: ast.Invoke{
-					Object: ast.Invoke{
-						Object: ast.Ref{Name: "test"},
-						Name:   "lte",
-						Args: []ast.Expr{
-							ast.Ref{Name: "x"},
-							ast.Int{Value: 1},
-						},
-					},
-					Name: "match",
-					Args: []ast.Expr{ast.Create{Methods: []ast.Method{
-						{
-							Name: "true",
-							Body: ast.Ref{Name: "x"},
-						},
-						{
-							Name: "false",
-							Body: ast.Invoke{
-								Object: ast.Ref{Name: "test"},
-								Name:   "mul",
-								Args: []ast.Expr{
-									ast.Ref{Name: "x"},
-									ast.Invoke{
-										Object: ast.Ref{Name: "fac"},
-										Name:   "call",
-										Args: []ast.Expr{
-											ast.Invoke{
-												Object: ast.Ref{Name: "test"},
-												Name:   "sub",
-												Args: []ast.Expr{
-													ast.Ref{Name: "x"},
-													ast.Int{Value: 1},
-												},
-											},
-										},
-									},
-								},
-							},
-						},
-					}}},
-				},
-			},
-		},
-	})
+	err := parser.ParseFile(&pt, []byte(`
+
+	func main() {
+		test.print(fac(5))
+	}
+
+	func fac(n) { 
+		test.lte(n, 1).match(object {
+			true() { 1 }
+			false() { test.mul(n, fac(test.sub(n, 1))) }
+		})
+	}
+
+	`))
 	assert.Nil(t, err)
+
+	pkg, err := backend.BuildPackage(pt)
+	assert.Nil(t, err)
+
+	t.Log(pkg)
+
+	e := new(env.Env)
+	e.SetHeapSize(32)
 
 	prog, err := linker.Link(testLinkerEnv{
 		"main": pkg,
 		"test": testPkg(),
 	})
 	assert.Nil(t, err)
-
-	t.Log(pkg)
 	t.Log(prog)
-	e := new(env.Env)
-	e.SetHeapSize(32)
 
 	var logged []api.Object
 	e.AddExternalMethod("test:print", func(p *env.Thread, recv api.Object) {
@@ -139,14 +95,12 @@ func TestBuildPackage(t *testing.T) {
 	})
 
 	e.Run(prog)
-	t.Log(logged)
 
-	assert.Equal(t, logged, []api.Object{env.Int(24)})
-
+	assert.Equal(t, logged, []api.Object{env.Int(120)})
 }
 
 func testPkg() *format.Package {
-	var b assembly.Writer
+	var b assembly.Package
 
 	pkgClass := b.Class(0)
 
