@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"errors"
+
 	"github.com/bobappleyard/cezanne/compiler/ast"
 	"github.com/bobappleyard/cezanne/compiler/text"
 )
@@ -10,6 +12,8 @@ func ParseFile(m *ast.Package, src []byte) error {
 	if err != nil {
 		return err
 	}
+
+	m.Imports = st.imports
 
 	for _, d := range st.decls {
 		switch d := d.(type) {
@@ -24,7 +28,8 @@ func ParseFile(m *ast.Package, src []byte) error {
 type parseRules struct{}
 
 type file struct {
-	decls []decl
+	imports []ast.Import
+	decls   []decl
 }
 
 type decl interface {
@@ -99,7 +104,14 @@ func (parseRules) ParseNewline(f file, x newline) file {
 }
 
 func (parseRules) ParseDecl(f file, x decl) file {
-	return file{decls: append(f.decls, x)}
+	return file{imports: f.imports, decls: append(f.decls, x)}
+}
+
+func (parseRules) ParseImport(f file, m importKeyword, path ident) (file, error) {
+	if len(f.decls) != 0 {
+		return file{}, errors.New("imports must come at the top of the file")
+	}
+	return file{imports: append(f.imports, ast.Import{Name: path.name, Path: path.name}), decls: f.decls}, nil
 }
 
 func (parseRules) ParseFunc(

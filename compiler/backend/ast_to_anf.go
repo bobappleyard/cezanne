@@ -110,7 +110,7 @@ func isGlobalMethodCall(s scope, src ast.Invoke) bool {
 func interpretGlobalMethodCall(s scope, dest *method, src ast.Ref, params []variable) variable {
 	u := dest.nextVar()
 	dest.steps = append(dest.steps, importStep{
-		path: ".",
+		from: ".",
 		into: u,
 	})
 

@@ -26,6 +26,7 @@ type groupOpen struct{}
 type groupClose struct{}
 type blockOpen struct{}
 type blockClose struct{}
+type importKeyword struct{}
 type funcKeyword struct{}
 type objectKeyword struct{}
 type effectKeyword struct{}
@@ -46,6 +47,7 @@ func (groupOpen) tok()      {}
 func (groupClose) tok()     {}
 func (blockOpen) tok()      {}
 func (blockClose) tok()     {}
+func (importKeyword) tok()  {}
 func (funcKeyword) tok()    {}
 func (objectKeyword) tok()  {}
 func (effectKeyword) tok()  {}
@@ -122,6 +124,8 @@ func (t *cezanneTokenizer) This() token {
 	}
 	if tok, ok := t.src.This().(ident); ok {
 		switch tok.name {
+		case "import":
+			return importKeyword{}
 		case "func":
 			return funcKeyword{}
 		case "effect":

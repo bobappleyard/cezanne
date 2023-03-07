@@ -28,10 +28,10 @@ func (e testLinkerEnv) LoadPackage(path string) (*format.Package, error) {
 
 func TestCompiler(t *testing.T) {
 	var pt ast.Package
-	pt.Name = "main"
-	pt.Imports = append(pt.Imports, ast.Import{Name: "test", Path: "test"})
 
 	err := parser.ParseFile(&pt, []byte(`
+
+	import test
 
 	func main() {
 		test.print(fac(5))
@@ -100,7 +100,7 @@ func TestCompiler(t *testing.T) {
 }
 
 func testPkg() *format.Package {
-	var b assembly.Package
+	var b assembly.Writer
 
 	pkgClass := b.Class(0)
 
