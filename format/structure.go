@@ -5,6 +5,7 @@ type MethodID uint32
 
 type Program struct {
 	ExternalMethods []string
+	CoreKinds       []ClassID
 	GlobalCount     int32
 	Classes         []Class
 	Methods         []Method
@@ -38,8 +39,18 @@ type Implementation struct {
 	EntryPoint uint32
 }
 
+type CoreKind uint32
+
+const (
+	UserKind CoreKind = iota
+	IntKind
+	TrueKind
+	FalseKind
+)
+
 type Class struct {
 	Name   string
+	Kind   CoreKind
 	Fieldc uint32
 }
 

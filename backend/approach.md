@@ -6,9 +6,9 @@ Intermediate form a bit like ANF:
     data IR = 
           Arg(Int)
         | StrLit(String)  
-        | Return(Int)
-        | Tail  (Var, String, [Int])
-        | Invoke(Var, String, [Int])
+        | Return(Var)
+        | Tail  (Var, String, [Var])
+        | Invoke(Var, String, [Var])
 
 Each instruction is referred to by its index to mean the result of executing that instruction.
 

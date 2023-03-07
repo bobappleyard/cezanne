@@ -55,6 +55,7 @@ type method struct {
 
 func (l *linker) init() {
 	l.program.Classes = make([]format.Class, 2)
+	l.program.CoreKinds = make([]format.ClassID, 16)
 	l.program.Code = []byte{
 		format.CreateOp, 1, 0, 0, 0, 0,
 		format.CallOp, 0, 0, 0, 0, 0,
@@ -78,6 +79,12 @@ func (l *linker) complete() *format.Program {
 	}
 	l.addMainInitCode()
 	l.determineOffsets()
+	for i, c := range l.program.Classes {
+		if c.Kind == format.UserKind {
+			continue
+		}
+		l.program.CoreKinds[c.Kind] = format.ClassID(i)
+	}
 	return &l.program
 }
 

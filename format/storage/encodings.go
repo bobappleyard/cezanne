@@ -49,6 +49,9 @@ func buildEncoding(t reflect.Type) encoding {
 			),
 		}
 
+	case reflect.Bool:
+		return &boolEncoding{}
+
 	case reflect.Int32:
 		return &intEncoding{bytes: 4}
 
@@ -68,6 +71,34 @@ func buildEncoding(t reflect.Type) encoding {
 	}
 
 	panic(fmt.Sprintf("unsupported type %s", t))
+}
+
+type boolEncoding struct{}
+
+// read implements encoding
+func (*boolEncoding) read(from io.ReaderAt, at int64, into reflect.Value) error {
+	var buf [1]byte
+	err := readBuffer(from, at, buf[:])
+	if err != nil {
+		return err
+	}
+	into.SetBool(buf[0] != 0)
+	return nil
+}
+
+// width implements encoding
+func (*boolEncoding) width() int64 {
+	return 1
+}
+
+// write implements encoding
+func (*boolEncoding) write(w *writer, at int64, from reflect.Value) error {
+	var b byte
+	if from.Bool() {
+		b = 1
+	}
+	_, err := w.dest.WriteAt([]byte{b}, at)
+	return err
 }
 
 type structEncoding struct {

@@ -52,6 +52,7 @@ func TestWrite(t *testing.T) {
 		ID     uint32
 		Offset int32
 		Bs     bs
+		New    bool
 	}
 	type file struct {
 		Name  string
@@ -61,7 +62,7 @@ func TestWrite(t *testing.T) {
 	var d testWriter
 	e := file{
 		Name:  "hello",
-		Items: []item{{1, 10000, bs{}}, {2678, 4, bs{1}}},
+		Items: []item{{1, 10000, bs{}, true}, {2678, 4, bs{1}, false}},
 	}
 
 	err := Write(&d, e)

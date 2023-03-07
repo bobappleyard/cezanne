@@ -9,15 +9,15 @@ import (
 )
 
 type Process struct {
-	callMethodID format.MethodID
-	extern       []func(p *Thread, recv api.Object)
-	globals      []api.Object
-	classes      []format.Class
-	bindings     []format.Implementation
-	methods      []format.Method
-	code         []byte
-	memory       *memory.Arena
-	processes    []Thread
+	extern    []func(p *Thread, recv api.Object)
+	globals   []api.Object
+	classes   []format.Class
+	kinds     []format.ClassID
+	bindings  []format.Implementation
+	methods   []format.Method
+	code      []byte
+	memory    *memory.Arena
+	processes []Thread
 }
 
 func (e *Process) Run() {
@@ -59,9 +59,9 @@ type Thread struct {
 }
 
 func (p *Thread) run() {
-	p.data[0] = Int(0)
-	p.data[2] = Int(0)
-	p.data[3] = Int(-1)
+	p.data[0] = p.process.Int(0)
+	p.data[2] = p.process.Int(0)
+	p.data[3] = p.process.Int(-1)
 
 	p.frame = 2
 
@@ -94,7 +94,7 @@ func (p *Thread) step() {
 
 		fmt.Println("NATURAL", value)
 
-		p.value = Int(value)
+		p.value = p.process.Int(value)
 
 	case format.GlobalLoadOp:
 		globalID := p.readInt()
@@ -183,12 +183,12 @@ func (p *Thread) readInt() int {
 }
 
 func (p *Thread) ret() {
-	depth := AsInt(p.data[p.frame])
-	codePos := AsInt(p.data[p.frame+1])
+	depth := p.process.AsInt(p.data[p.frame])
+	codePos := p.process.AsInt(p.data[p.frame+1])
 
 	// reset the context, if required
 	if p.frame == p.context+2 {
-		p.context -= AsInt(p.data[p.context])
+		p.context -= p.process.AsInt(p.data[p.context])
 	}
 
 	p.frame -= depth

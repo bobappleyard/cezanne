@@ -19,6 +19,7 @@ func (e *Env) Run(prog *format.Program) {
 			return e.externalMethods[n]
 		}),
 		classes:  prog.Classes,
+		kinds:    prog.CoreKinds,
 		bindings: prog.Implmentations,
 		methods:  prog.Methods,
 		code:     prog.Code,

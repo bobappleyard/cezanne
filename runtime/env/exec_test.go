@@ -12,6 +12,7 @@ import (
 func newTestProc() *Process {
 	p := &Process{}
 	p.memory = memory.NewArena(p, 32)
+	p.kinds = make([]format.ClassID, 16)
 	return p
 }
 
@@ -21,11 +22,11 @@ func TestLoad(t *testing.T) {
 		format.LoadOp, 0,
 	}
 	p := &Thread{process: e}
-	p.data[0] = Int(25)
+	p.data[0] = e.Int(25)
 
 	p.step()
 
-	assert.Equal(t, p.value, Int(25))
+	assert.Equal(t, p.value, e.Int(25))
 }
 
 func TestStore(t *testing.T) {
@@ -34,11 +35,11 @@ func TestStore(t *testing.T) {
 		format.StoreOp, 0,
 	}
 	p := &Thread{process: e}
-	p.value = Int(25)
+	p.value = e.Int(25)
 
 	p.step()
 
-	assert.Equal(t, p.data[0], Int(25))
+	assert.Equal(t, p.data[0], e.Int(25))
 }
 
 func TestNatural(t *testing.T) {
@@ -50,7 +51,7 @@ func TestNatural(t *testing.T) {
 
 	p.step()
 
-	assert.Equal(t, Int(25), p.value)
+	assert.Equal(t, e.Int(25), p.value)
 }
 
 func TestLoadGlobal(t *testing.T) {
@@ -59,14 +60,14 @@ func TestLoadGlobal(t *testing.T) {
 		format.GlobalLoadOp, 0, 0, 0, 0,
 	}
 	e.globals = []api.Object{
-		Int(5),
+		e.Int(5),
 	}
 
 	p := &Thread{process: e}
 
 	p.step()
 
-	assert.Equal(t, p.value, Int(5))
+	assert.Equal(t, p.value, e.Int(5))
 }
 
 func TestStoreGlobal(t *testing.T) {
@@ -77,10 +78,10 @@ func TestStoreGlobal(t *testing.T) {
 	e.globals = make([]api.Object, 1)
 
 	p := &Thread{process: e}
-	p.value = Int(25)
+	p.value = e.Int(25)
 	p.step()
 
-	assert.Equal(t, e.globals, []api.Object{Int(25)})
+	assert.Equal(t, e.globals, []api.Object{e.Int(25)})
 }
 
 func TestCreate(t *testing.T) {
@@ -93,12 +94,12 @@ func TestCreate(t *testing.T) {
 	}
 
 	p := &Thread{process: e}
-	p.data[0] = Int(4)
+	p.data[0] = e.Int(4)
 
 	p.step()
 
 	assert.Equal(t, p.value.Class, 0)
-	assert.Equal(t, p.Field(p.value, 0), Int(4))
+	assert.Equal(t, p.Field(p.value, 0), e.Int(4))
 }
 
 func TestRet(t *testing.T) {
@@ -108,8 +109,8 @@ func TestRet(t *testing.T) {
 	}
 
 	p := &Thread{process: e}
-	p.data[0] = Int(1)
-	p.data[1] = Int(10)
+	p.data[0] = e.Int(1)
+	p.data[1] = e.Int(10)
 
 	p.step()
 
@@ -169,9 +170,9 @@ func TestRun(t *testing.T) {
 	}
 	e.extern = []func(p *Thread, recv api.Object){
 		func(p *Thread, recv api.Object) {
-			left := AsInt(p.Arg(0))
-			right := AsInt(p.Arg(1))
-			p.Return(Int(left + right))
+			left := e.AsInt(p.Arg(0))
+			right := e.AsInt(p.Arg(1))
+			p.Return(e.Int(left + right))
 		},
 	}
 	e.globals = []api.Object{
@@ -182,5 +183,5 @@ func TestRun(t *testing.T) {
 
 	p.run()
 
-	assert.Equal(t, Int(3), p.value)
+	assert.Equal(t, e.Int(3), p.value)
 }

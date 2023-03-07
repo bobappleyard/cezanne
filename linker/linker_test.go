@@ -50,16 +50,16 @@ func TestLink(t *testing.T) {
 	var res api.Object
 	e.AddExternalMethod("test:result", func(p *env.Thread, recv api.Object) {
 		res = p.Arg(0)
-		p.Return(env.Int(0))
+		p.Return(p.Process().Int(0))
 	})
 
 	e.AddExternalMethod("core:int_add", func(p *env.Thread, recv api.Object) {
-		p.Return(env.Int(env.AsInt(p.Arg(0)) + env.AsInt(p.Arg(1))))
+		p.Return(p.Process().Int(p.Process().AsInt(p.Arg(0)) + p.Process().AsInt(p.Arg(1))))
 	})
 
 	e.Run(prog)
 
-	assert.Equal(t, res, env.Int(10))
+	assert.Equal(t, res, api.Object{Class: prog.CoreKinds[format.IntKind], Data: 10})
 }
 
 func mainPackage() *format.Package {

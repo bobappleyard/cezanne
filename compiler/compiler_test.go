@@ -65,38 +65,27 @@ func TestCompiler(t *testing.T) {
 	var logged []api.Object
 	e.AddExternalMethod("test:print", func(p *env.Thread, recv api.Object) {
 		logged = append(logged, p.Arg(0))
-		p.Return(env.Int(0))
+		p.Return(p.Process().Int(0))
 	})
 
-	var trueM, falseM format.MethodID
-	for i, m := range prog.Methods {
-		if m.Name == "true" {
-			trueM = format.MethodID(i)
-		}
-		if m.Name == "false" {
-			falseM = format.MethodID(i)
-		}
-	}
-
 	e.AddExternalMethod("test:lte", func(p *env.Thread, recv api.Object) {
-		if env.AsInt(p.Arg(0)) <= env.AsInt(p.Arg(1)) {
-			p.TailCall(recv, trueM)
-		} else {
-			p.TailCall(recv, falseM)
-		}
+		a, b := p.Process().AsInt(p.Arg(0)), p.Process().AsInt(p.Arg(1))
+		p.Return(p.Process().Bool(a <= b))
 	})
 
 	e.AddExternalMethod("test:sub", func(p *env.Thread, recv api.Object) {
-		p.Return(env.Int(env.AsInt(p.Arg(0)) - env.AsInt(p.Arg(1))))
+		a, b := p.Process().AsInt(p.Arg(0)), p.Process().AsInt(p.Arg(1))
+		p.Return(p.Process().Int(a - b))
 	})
 
 	e.AddExternalMethod("test:mul", func(p *env.Thread, recv api.Object) {
-		p.Return(env.Int(env.AsInt(p.Arg(0)) * env.AsInt(p.Arg(1))))
+		a, b := p.Process().AsInt(p.Arg(0)), p.Process().AsInt(p.Arg(1))
+		p.Return(p.Process().Int(a * b))
 	})
 
 	e.Run(prog)
 
-	assert.Equal(t, logged, []api.Object{env.Int(120)})
+	assert.Equal(t, logged, []api.Object{{Class: prog.CoreKinds[format.IntKind], Data: 120}})
 }
 
 func testPkg() *format.Package {
@@ -112,23 +101,20 @@ func testPkg() *format.Package {
 	b.Load(2)
 	b.Call(b.Method("true"), 0)
 
-	b.ImplementMethod(pkgClass, b.Method("true"))
-	b.Create(trueClass, 0)
-	b.Return()
-
 	falseClass := b.Class(0)
 	b.ImplementMethod(falseClass, b.Method("match"))
 	b.Load(2)
 	b.Call(b.Method("false"), 0)
-
-	b.ImplementMethod(pkgClass, b.Method("false"))
-	b.Create(falseClass, 0)
-	b.Return()
 
 	b.ImplementExternalMethod(pkgClass, b.Method("lte"), "test:lte")
 	b.ImplementExternalMethod(pkgClass, b.Method("sub"), "test:sub")
 	b.ImplementExternalMethod(pkgClass, b.Method("mul"), "test:mul")
 	b.ImplementExternalMethod(pkgClass, b.Method("print"), "test:print")
 
-	return b.Package()
+	p := b.Package()
+	p.Classes[1].Kind = format.TrueKind
+	p.Classes[2].Kind = format.FalseKind
+
+	return p
+
 }
