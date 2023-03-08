@@ -6,38 +6,6 @@ type Iter[T any] interface {
 	Err() error
 }
 
-type LL1Stream[T any] struct {
-	src     Iter[T]
-	useLast bool
-}
-
-func LL1[T any](s Iter[T]) *LL1Stream[T] {
-	return &LL1Stream[T]{src: s}
-}
-
-// Err implements Stream
-func (s *LL1Stream[T]) Err() error {
-	return s.src.Err()
-}
-
-// Next implements Stream
-func (s *LL1Stream[T]) Next() bool {
-	if s.useLast {
-		s.useLast = false
-		return true
-	}
-	return s.src.Next()
-}
-
-// This implements Stream
-func (s *LL1Stream[T]) This() T {
-	return s.src.This()
-}
-
-func (s *LL1Stream[T]) Back() {
-	s.useLast = true
-}
-
 type sliceStream[T any] struct {
 	items []T
 	pos   int

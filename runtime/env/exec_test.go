@@ -16,6 +16,27 @@ func newTestProc() *Process {
 	return p
 }
 
+func TestReadNegative(t *testing.T) {
+	p := &Thread{
+		process: &Process{
+			code: []byte{0xff, 0xff, 0xff, 0xff},
+		},
+	}
+	assert.Equal(t, format.ClassID(p.readInt()), -1)
+}
+
+func TestArray(t *testing.T) {
+	e := newTestProc()
+	e.classes = make([]format.Class, 1)
+	a := e.Array([]api.Object{e.Int(1), e.Int(2)})
+	t.Log(a)
+	e.globals = []api.Object{a}
+	t.Log(e.memory)
+	e.memory.Collect()
+	t.Log(e.memory)
+	assert.Equal(t, e.AsArray(a), []api.Object{e.Int(1), e.Int(2)})
+}
+
 func TestLoad(t *testing.T) {
 	e := newTestProc()
 	e.code = []byte{
@@ -99,7 +120,7 @@ func TestCreate(t *testing.T) {
 	p.step()
 
 	assert.Equal(t, p.value.Class, 0)
-	assert.Equal(t, p.Field(p.value, 0), e.Int(4))
+	assert.Equal(t, e.Field(p.value, 0), e.Int(4))
 }
 
 func TestRet(t *testing.T) {

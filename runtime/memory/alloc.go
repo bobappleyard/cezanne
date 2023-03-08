@@ -36,7 +36,7 @@ func (a *Arena) Alloc(class format.ClassID, fields []api.Object) api.Object {
 	if ok {
 		return res
 	}
-	a.collect()
+	a.Collect()
 	res, ok = a.tryAlloc(class, fields)
 	if ok {
 		return res
@@ -71,7 +71,7 @@ func (a *Arena) Set(object api.Object, field int, value api.Object) {
 	a.front[object.Data+api.Ref(field)] = value
 }
 
-func (a *Arena) collect() {
+func (a *Arena) Collect() {
 	c := &Collection{arena: a}
 	a.front, a.back = a.back, a.front
 	a.allocated = 0

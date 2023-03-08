@@ -9,15 +9,15 @@ import (
 )
 
 type Process struct {
-	extern    []func(p *Thread, recv api.Object)
-	globals   []api.Object
-	classes   []format.Class
-	kinds     []format.ClassID
-	bindings  []format.Implementation
-	methods   []format.Method
-	code      []byte
-	memory    *memory.Arena
-	processes []Thread
+	extern   []func(p *Thread, recv api.Object)
+	globals  []api.Object
+	classes  []format.Class
+	kinds    []format.ClassID
+	bindings []format.Implementation
+	methods  []format.Method
+	code     []byte
+	memory   *memory.Arena
+	threads  []Thread
 }
 
 func (e *Process) Run() {
@@ -31,17 +31,18 @@ func (p *Thread) Process() *Process {
 	return p.process
 }
 
-// FieldCount implements memory.Env
 func (e *Process) FieldCount(class format.ClassID) int {
+	if class < 0 {
+		return -int(class) - 1
+	}
 	return int(e.classes[class].Fieldc)
 }
 
-// MarkRoots implements memory.Env
 func (e *Process) MarkRoots(c *memory.Collection) {
 	for i, x := range e.globals {
 		e.globals[i] = c.Copy(x)
 	}
-	for _, p := range e.processes {
+	for _, p := range e.threads {
 		for i := 0; i < p.frame+p.frameEnd; i++ {
 			p.data[i] = c.Copy(p.data[i])
 		}
@@ -70,19 +71,27 @@ func (p *Thread) run() {
 	}
 }
 
+const inDebug = false
+
+func (p *Thread) debug(op string, args ...any) {
+	if inDebug {
+		fmt.Println(append([]any{p.codePos, op}, args...)...)
+	}
+}
+
 func (p *Thread) step() {
 	switch p.readByte() {
 	case format.LoadOp:
 		varID := p.readByte()
 
-		fmt.Println("LOAD", varID)
+		p.debug("LOAD", varID)
 
 		p.value = p.data[p.frame+varID]
 
 	case format.StoreOp:
 		varID := p.readByte()
 
-		fmt.Println("STORE", varID)
+		p.debug("STORE", varID)
 
 		if varID > p.frameEnd {
 			p.frameEnd = varID
@@ -92,21 +101,21 @@ func (p *Thread) step() {
 	case format.NaturalOp:
 		value := p.readInt()
 
-		fmt.Println("NATURAL", value)
+		p.debug("NATURAL", value)
 
 		p.value = p.process.Int(value)
 
 	case format.GlobalLoadOp:
 		globalID := p.readInt()
 
-		fmt.Println("GLOBAL_LOAD", globalID)
+		p.debug("GLOBAL_LOAD", globalID)
 
 		p.value = p.process.globals[globalID]
 
 	case format.GlobalStoreOp:
 		globalID := p.readInt()
 
-		fmt.Println("GLOBAL_STORE", globalID)
+		p.debug("GLOBAL_STORE", globalID)
 
 		p.process.globals[globalID] = p.value
 
@@ -114,19 +123,19 @@ func (p *Thread) step() {
 		classID := format.ClassID(p.readInt())
 		base := p.readByte()
 
-		fmt.Println("CREATE", classID, base)
+		p.debug("CREATE", classID, base)
 
 		p.value = p.process.memory.Alloc(classID, p.data[p.frame+base:])
 
 	case format.FieldOp:
 		field := p.readInt()
 
-		fmt.Println("FIELD", field)
+		p.debug("FIELD", field)
 
-		p.value = p.Field(p.value, field)
+		p.value = p.process.Field(p.value, field)
 
 	case format.RetOp:
-		fmt.Println("RETURN")
+		p.debug("RETURN")
 
 		p.ret()
 
@@ -135,7 +144,7 @@ func (p *Thread) step() {
 		base := p.readByte()
 		m := p.process.methods[methodId]
 
-		fmt.Println("CALL", methodId, base, m.Name)
+		p.debug("CALL", methodId, base, m.Name)
 
 		p.frame += base
 		p.callMethod(m)
@@ -149,14 +158,6 @@ func (p *Thread) Arg(id int) api.Object {
 func (p *Thread) Return(x api.Object) {
 	p.value = x
 	p.ret()
-}
-
-func (p *Thread) Field(x api.Object, id int) api.Object {
-	return p.process.memory.Get(x, id)
-}
-
-func (p *Thread) Create(class format.ClassID, fields ...api.Object) api.Object {
-	return p.process.memory.Alloc(class, fields)
 }
 
 func (p *Thread) TailCall(object api.Object, method format.MethodID, args ...api.Object) {
@@ -205,7 +206,11 @@ func (p *Thread) callMethod(m format.Method) {
 }
 
 func (p *Thread) getMethod(object api.Object, offset int32) *format.Implementation {
-	idx := int(object.Class) + int(offset)
+	cid := int(object.Class)
+	if cid < 0 {
+		cid = int(p.process.kinds[format.ArrayKind])
+	}
+	idx := cid + int(offset)
 	if idx < 0 || idx >= len(p.process.bindings) {
 		return nil
 	}
@@ -217,10 +222,8 @@ func (p *Thread) getMethod(object api.Object, offset int32) *format.Implementati
 
 func (p *Thread) enterMethod(method *format.Implementation) {
 	if method.Kind == format.ExternalBinding {
-		fmt.Println("Calling external method", method.EntryPoint)
 		p.process.extern[method.EntryPoint](p, p.value)
 	} else {
-		fmt.Println("Moving to codepos", method.EntryPoint)
 		p.codePos = int(method.EntryPoint)
 	}
 }

@@ -1,6 +1,6 @@
 package format
 
-type ClassID uint32
+type ClassID int32
 type MethodID uint32
 
 type Program struct {
@@ -46,6 +46,7 @@ const (
 	IntKind
 	TrueKind
 	FalseKind
+	ArrayKind
 )
 
 type Class struct {

@@ -67,7 +67,6 @@ type callStep struct {
 	params []variable
 }
 
-// hackety hack
 func (stringStep) step()      {}
 func (intStep) step()         {}
 func (localStep) step()       {}
