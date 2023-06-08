@@ -3,9 +3,9 @@ package memory
 import (
 	"testing"
 
-	"github.com/bobappleyard/cezanne/assert"
 	"github.com/bobappleyard/cezanne/format"
 	"github.com/bobappleyard/cezanne/runtime/api"
+	"github.com/bobappleyard/cezanne/util/assert"
 )
 
 type testEnv struct {

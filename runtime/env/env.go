@@ -2,9 +2,10 @@ package env
 
 import (
 	"github.com/bobappleyard/cezanne/format"
+	"github.com/bobappleyard/cezanne/format/symtab"
 	"github.com/bobappleyard/cezanne/runtime/api"
 	"github.com/bobappleyard/cezanne/runtime/memory"
-	"github.com/bobappleyard/cezanne/slices"
+	"github.com/bobappleyard/cezanne/util/slices"
 )
 
 type Env struct {
@@ -12,11 +13,11 @@ type Env struct {
 	heapSize        int
 }
 
-func (e *Env) Run(prog *format.Program) {
+func (e *Env) Run(syms *symtab.Symtab, prog *format.Program) {
 	p := &Process{
 		globals: make([]api.Object, prog.GlobalCount),
-		extern: slices.Map(prog.ExternalMethods, func(n string) func(p *Thread, recv api.Object) {
-			return e.externalMethods[n]
+		extern: slices.Map(prog.ExternalMethods, func(n symtab.Symbol) func(p *Thread, recv api.Object) {
+			return e.externalMethods[syms.SymbolName(n)]
 		}),
 		classes:  prog.Classes,
 		kinds:    prog.CoreKinds,

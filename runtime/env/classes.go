@@ -1,8 +1,11 @@
 package env
 
 import (
+	"unicode/utf8"
+
 	"github.com/bobappleyard/cezanne/format"
 	"github.com/bobappleyard/cezanne/runtime/api"
+	"github.com/bobappleyard/cezanne/util/slices"
 )
 
 func (p *Process) Create(class format.ClassID, fields ...api.Object) api.Object {
@@ -46,4 +49,23 @@ func (p *Process) AsArray(x api.Object) []api.Object {
 		items[i] = p.Field(x, i)
 	}
 	return items
+}
+
+func (p *Process) String(s string) api.Object {
+	var runes []api.Object
+
+	pos := 0
+	for pos < len(s) {
+		c, size := utf8.DecodeRuneInString(s[pos:])
+		runes = append(runes, p.Int(int(c)))
+		pos += size
+	}
+
+	return p.Create(p.kinds[format.StringKind], p.Array(runes))
+}
+
+func (p *Process) AsString(x api.Object) string {
+	return string(slices.Map(p.AsArray(p.Field(x, 0)), func(x api.Object) rune {
+		return rune(p.AsInt(x))
+	}))
 }

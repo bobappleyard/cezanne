@@ -1,0 +1,46 @@
+export sum type Iteration[T] {
+    item(x: T, next: Iter[T, E])
+    done()
+}
+
+export type Iter[T, E] {
+    next(): Iteration[T] in E
+}
+
+export type Search[T, E] {
+    where(test: func(x: T): Bool in E): Search[T, E] in E
+    select[U](selection: func(x: T): U in E): Search[U, E] in E
+    selectAll[U](selection: func(x: T): Search[U, E] in E): Search[U, E] in E
+
+    followedBy(next: Search[T, E]): Search[T, E]
+
+    iter(): Iter[T, E]
+}
+
+export func from(xs) -> {
+    where(test) -> doSelectAll(xs, x -> if test(x) then from(singleton(x)) else from(empty()))
+    select(selection) -> doSelectAll(xs, x -> from(singleton(selection(x))))
+    selectAll(selection) -> doSelectAll(xs, selection)
+    
+    followedBy(next) -> from(doConcat(xs, next.iter()))
+
+    iter() -> xs
+}
+
+// wrap in an iterator to delay consumption of the source
+func doSelectAll(xs, selection) -> from({
+    next() -> xs.next().match({
+        item(x, next) -> selection(x).followedBy(doSelectAll(next, selection))
+        done() -> Iteration.done()
+    })
+})
+
+func doConcat(left, right) -> {
+    next() -> left.next().match({
+        item(x, next) -> Iteration.item(x, doConcat(next, right))
+        done() -> right.next()
+    })
+}
+
+func singleton(x) -> {next() -> Iteration.item(x, empty())}
+func empty() -> {next() -> Iteration.done()}

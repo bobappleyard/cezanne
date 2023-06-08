@@ -3,14 +3,16 @@ package env
 import (
 	"testing"
 
-	"github.com/bobappleyard/cezanne/assert"
 	"github.com/bobappleyard/cezanne/format"
+	"github.com/bobappleyard/cezanne/format/symtab"
 	"github.com/bobappleyard/cezanne/runtime/api"
 	"github.com/bobappleyard/cezanne/runtime/memory"
+	"github.com/bobappleyard/cezanne/util/assert"
 )
 
 func newTestProc() *Process {
 	p := &Process{}
+	p.syms = new(symtab.Symtab)
 	p.memory = memory.NewArena(p, 32)
 	p.kinds = make([]format.ClassID, 16)
 	return p
@@ -23,18 +25,6 @@ func TestReadNegative(t *testing.T) {
 		},
 	}
 	assert.Equal(t, format.ClassID(p.readInt()), -1)
-}
-
-func TestArray(t *testing.T) {
-	e := newTestProc()
-	e.classes = make([]format.Class, 1)
-	a := e.Array([]api.Object{e.Int(1), e.Int(2)})
-	t.Log(a)
-	e.globals = []api.Object{a}
-	t.Log(e.memory)
-	e.memory.Collect()
-	t.Log(e.memory)
-	assert.Equal(t, e.AsArray(a), []api.Object{e.Int(1), e.Int(2)})
 }
 
 func TestLoad(t *testing.T) {

@@ -4,11 +4,13 @@ import (
 	"fmt"
 
 	"github.com/bobappleyard/cezanne/format"
+	"github.com/bobappleyard/cezanne/format/symtab"
 	"github.com/bobappleyard/cezanne/runtime/api"
 	"github.com/bobappleyard/cezanne/runtime/memory"
 )
 
 type Process struct {
+	syms     *symtab.Symtab
 	extern   []func(p *Thread, recv api.Object)
 	globals  []api.Object
 	classes  []format.Class
@@ -200,7 +202,7 @@ func (p *Thread) ret() {
 func (p *Thread) callMethod(m format.Method) {
 	impl := p.getMethod(p.value, m.Offset)
 	if impl == nil {
-		panic("unable to call method " + m.Name)
+		panic("unable to call method " + p.process.syms.SymbolName(m.Name))
 	}
 	p.enterMethod(impl)
 }

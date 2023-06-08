@@ -1,21 +1,24 @@
 package format
 
+import "github.com/bobappleyard/cezanne/format/symtab"
+
 type ClassID int32
 type MethodID uint32
 
 type Program struct {
-	ExternalMethods []string
+	ExternalMethods []symtab.Symbol
 	CoreKinds       []ClassID
 	GlobalCount     int32
 	Classes         []Class
 	Methods         []Method
 	Implmentations  []Implementation
+	Symbols         symtab.Symtab
 	Code            []byte
 }
 
 type Package struct {
 	Imports         []string
-	ExternalMethods []string
+	ExternalMethods []symtab.Symbol
 	Classes         []Class
 	Methods         []Method
 	Implementations []Implementation
@@ -47,10 +50,14 @@ const (
 	TrueKind
 	FalseKind
 	ArrayKind
+	StringKind
+
+	// not a kind, but can be used to init the kind list
+	AllKinds
 )
 
 type Class struct {
-	Name   string
+	Name   symtab.Symbol
 	Kind   CoreKind
 	Fieldc uint32
 }
@@ -65,7 +72,7 @@ const (
 
 type Method struct {
 	Visibility Visibility
-	Name       string
+	Name       symtab.Symbol
 	Offset     int32
 }
 
@@ -83,7 +90,7 @@ const (
 type Relocation struct {
 	Kind RelocationKind
 	ID   int32
-	Pos  int32
+	Pos  uint32
 }
 
 const (

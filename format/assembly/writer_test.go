@@ -3,12 +3,14 @@ package assembly
 import (
 	"testing"
 
-	"github.com/bobappleyard/cezanne/assert"
 	"github.com/bobappleyard/cezanne/format"
+	"github.com/bobappleyard/cezanne/format/symtab"
+	"github.com/bobappleyard/cezanne/util/assert"
 )
 
 func TestSimpleInstructions(t *testing.T) {
-	var b Writer
+	var tab symtab.Symtab
+	b := New(&tab)
 	b.Load(1)
 	b.Store(2)
 	b.Natural(b.Fixed(3))
@@ -24,7 +26,8 @@ func TestSimpleInstructions(t *testing.T) {
 }
 
 func TestLocation(t *testing.T) {
-	var b Writer
+	var tab symtab.Symtab
+	b := New(&tab)
 
 	start := b.Location()
 	end := b.Location()
@@ -52,7 +55,8 @@ func TestLocation(t *testing.T) {
 }
 
 func TestGlobal(t *testing.T) {
-	var b Writer
+	var tab symtab.Symtab
+	b := New(&tab)
 
 	b.GlobalLoad(b.Global(0))
 
@@ -66,7 +70,8 @@ func TestGlobal(t *testing.T) {
 }
 
 func TestImport(t *testing.T) {
-	var b Writer
+	var tab symtab.Symtab
+	b := New(&tab)
 
 	b.GlobalLoad(b.Import("fmt"))
 
@@ -81,7 +86,8 @@ func TestImport(t *testing.T) {
 }
 
 func TestClass(t *testing.T) {
-	var b Writer
+	var tab symtab.Symtab
+	b := New(&tab)
 
 	b.Create(b.Class(0), 2)
 
@@ -96,16 +102,17 @@ func TestClass(t *testing.T) {
 }
 
 func TestMethod(t *testing.T) {
-	var b Writer
+	var tab symtab.Symtab
+	b := New(&tab)
 
-	b.Call(b.Method("add"), 4)
+	b.Call(b.Method(tab.SymbolID("add")), 4)
 
 	p := b.Package()
 	assert.Equal(t, p.Code, []byte{
 		format.CallOp, 0, 0, 0, 0, 4,
 	})
 	assert.Equal(t, p.Methods, []format.Method{{
-		Name:       "add",
+		Name:       tab.SymbolID("add"),
 		Visibility: format.Public,
 	}})
 	assert.Equal(t, p.Relocations, []format.Relocation{
@@ -114,13 +121,14 @@ func TestMethod(t *testing.T) {
 }
 
 func TestBinding(t *testing.T) {
-	var b Writer
+	var tab symtab.Symtab
+	b := New(&tab)
 
 	mainPackage := b.Class(0)
 
 	b.Create(mainPackage, 0)
-	b.Call(b.Method("main"), 0)
-	b.ImplementMethod(mainPackage, b.Method("main"))
+	b.Call(b.Method(tab.SymbolID("main")), 0)
+	b.ImplementMethod(mainPackage, b.Method(tab.SymbolID("main")))
 
 	p := b.Package()
 	assert.Equal(t, p.Implementations, []format.Implementation{{

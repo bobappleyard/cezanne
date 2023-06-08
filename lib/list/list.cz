@@ -1,0 +1,34 @@
+
+export List = {
+    cons(head, tail) -> ListImpl { match(v) -> v.cons(head, tail) }
+    null() -> ListImpl { match(v) -> v.null() }
+}
+
+type Visitor[T, U] {
+    cons(head:T, tail: ListImpl[T]): U
+    null(): U
+}
+
+class ListImpl[T] {
+    required match[U](v: Visitor[T, U]): U
+
+    fold(init, f) -> this.match({
+        cons(head, tail) -> tail.fold(f(head, init), f)
+        null() -> init
+    })
+
+    reverse() -> this.fold(List.null(), List.cons)
+
+    append(ls) -> this.reverse().fold(ls, List.cons)
+
+    flat_map(f) -> this.fold(List.null(), (x, acc) -> acc.append(f(x)))
+
+    map(f) -> this.flat_map(x -> List.cons(f(x), List.null())))
+
+    filter(f) -> this.flat_map(x -> f(x).match({
+        true() -> List.cons(x, List.null())
+        false() -> List.null()
+    }))
+}
+
+

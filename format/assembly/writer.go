@@ -2,15 +2,17 @@ package assembly
 
 import (
 	"github.com/bobappleyard/cezanne/format"
+	"github.com/bobappleyard/cezanne/format/symtab"
 )
 
 type Writer struct {
+	syms     *symtab.Symtab
 	code     []byte
 	rels     []format.Relocation
 	methods  []format.Method
 	classes  []format.Class
 	bindings []format.Implementation
-	external []string
+	external []symtab.Symbol
 	imports  []string
 }
 
@@ -30,61 +32,67 @@ func (b *Writer) Package() *format.Package {
 	}
 }
 
+func New(syms *symtab.Symtab) *Writer {
+	return &Writer{
+		syms: syms,
+	}
+}
+
 func (b *Writer) Load(id int) {
-	b.writeByte(format.LoadOp)
-	b.writeByte(id)
+	b.WriteByte(format.LoadOp)
+	b.WriteByte(id)
 }
 
 func (b *Writer) Store(id int) {
-	b.writeByte(format.StoreOp)
-	b.writeByte(id)
+	b.WriteByte(format.StoreOp)
+	b.WriteByte(id)
 }
 
 func (b *Writer) Natural(value Value) {
-	b.writeByte(format.NaturalOp)
+	b.WriteByte(format.NaturalOp)
 	value.write()
 }
 
 func (b *Writer) GlobalLoad(id *Global) {
-	b.writeByte(format.GlobalLoadOp)
+	b.WriteByte(format.GlobalLoadOp)
 	id.write()
 }
 
 func (b *Writer) GlobalStore(id *Global) {
-	b.writeByte(format.GlobalStoreOp)
+	b.WriteByte(format.GlobalStoreOp)
 	id.write()
 }
 
 func (b *Writer) Create(id *Class, base int) {
-	b.writeByte(format.CreateOp)
+	b.WriteByte(format.CreateOp)
 	id.write()
-	b.writeByte(base)
+	b.WriteByte(base)
 }
 
 func (b *Writer) Field(id int) {
-	b.writeByte(format.FieldOp)
+	b.WriteByte(format.FieldOp)
 	b.writeInt(id)
 }
 
 func (b *Writer) Return() {
-	b.writeByte(format.RetOp)
+	b.WriteByte(format.RetOp)
 }
 
 func (b *Writer) Call(methodID *Method, base int) {
-	b.writeByte(format.CallOp)
+	b.WriteByte(format.CallOp)
 	methodID.write()
-	b.writeByte(base)
+	b.WriteByte(base)
 }
 
-func (b *Writer) writeByte(value int) {
+func (b *Writer) WriteByte(value int) {
 	b.code = append(b.code, byte(value))
 }
 
 func (b *Writer) writeInt(value int) {
-	b.writeByte(value)
-	b.writeByte(value >> 8)
-	b.writeByte(value >> 16)
-	b.writeByte(value >> 24)
+	b.WriteByte(value)
+	b.WriteByte(value >> 8)
+	b.WriteByte(value >> 16)
+	b.WriteByte(value >> 24)
 }
 
 type Location struct {
@@ -100,7 +108,7 @@ func (l *Location) write() {
 	l.b.rels = append(l.b.rels, format.Relocation{
 		Kind: format.CodeRel,
 		ID:   int32(l.def),
-		Pos:  int32(len(l.b.code)),
+		Pos:  uint32(len(l.b.code)),
 	})
 	l.b.writeInt(0)
 }
@@ -128,12 +136,12 @@ func (l *Method) write() {
 	l.b.rels = append(l.b.rels, format.Relocation{
 		Kind: format.MethodRel,
 		ID:   int32(l.id),
-		Pos:  int32(len(l.b.code)),
+		Pos:  uint32(len(l.b.code)),
 	})
 	l.b.writeInt(0)
 }
 
-func (b *Writer) Method(name string) *Method {
+func (b *Writer) Method(name symtab.Symbol) *Method {
 	var id int
 	b.methods, id = ensure(b.methods, func(x format.Method) bool {
 		return x.Name == name
@@ -155,7 +163,7 @@ func (l *Class) write() {
 	l.b.rels = append(l.b.rels, format.Relocation{
 		Kind: format.ClassRel,
 		ID:   int32(l.id),
-		Pos:  int32(len(l.b.code)),
+		Pos:  uint32(len(l.b.code)),
 	})
 	l.b.writeInt(0)
 }
@@ -183,7 +191,7 @@ func (l *Global) write() {
 	l.b.rels = append(l.b.rels, format.Relocation{
 		Kind: l.kind,
 		ID:   int32(l.id),
-		Pos:  int32(len(l.b.code)),
+		Pos:  uint32(len(l.b.code)),
 	})
 	l.b.writeInt(0)
 }
@@ -235,11 +243,11 @@ func (b *Writer) ImplementMethod(class *Class, method *Method) {
 	})
 }
 
-func (b *Writer) ImplementExternalMethod(class *Class, method *Method, ext string) {
+func (b *Writer) ImplementExternalMethod(class *Class, method *Method, ext symtab.Symbol) {
 	var entryPoint int
-	b.external, entryPoint = ensure(b.external, func(x string) bool {
+	b.external, entryPoint = ensure(b.external, func(x symtab.Symbol) bool {
 		return x == ext
-	}, func() string {
+	}, func() symtab.Symbol {
 		return ext
 	})
 	b.bindings = append(b.bindings, format.Implementation{
