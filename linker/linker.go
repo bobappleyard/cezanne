@@ -2,9 +2,9 @@ package linker
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/bobappleyard/cezanne/format"
-	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
@@ -18,85 +18,63 @@ type LinkerEnv interface {
 	LoadPackage(path string) (*format.Package, error)
 }
 
+type Program struct {
+	Included        []string
+	Classes         []Class
+	Methods         []format.Method
+	Implementations []Implementation
+}
+
+type Class struct {
+	FieldCount int
+}
+
+type Implementation struct {
+	Class  int
+	Method int
+	Symbol string
+}
+
 // Given a collection of packages keyed by path, create a program by starting
 // with the "main" package and taking the transitive closure of the import
 // relation.
-func Link(env LinkerEnv) (*format.Program, error) {
+func Link(env LinkerEnv) (*Program, error) {
 	l := &linker{
-		env:     env,
-		methods: map[string]*method{"call": {}},
-		imports: map[string]*importedPackage{},
+		env: env,
+		program: Program{
+			Classes: []Class{{}},
+		},
+		imports: map[string]int{},
+		methods: map[string]*method{},
 	}
-	l.init()
 	err := l.importPackage("main")
 	if err != nil {
 		return nil, err
 	}
-	return l.complete(), nil
+	l.determineOffsets()
+	return &l.program, nil
 }
 
 type linker struct {
 	env     LinkerEnv
-	program format.Program
+	program Program
+	imports map[string]int
 	methods map[string]*method
-	imports map[string]*importedPackage
-}
-
-type importedPackage struct {
-	order  int
-	global int32
-	class  format.ClassID
 }
 
 type method struct {
-	id    format.MethodID
-	impls []format.Implementation
-}
-
-func (l *linker) init() {
-	l.program.Classes = make([]format.Class, 2)
-	l.program.CoreKinds = make([]format.ClassID, 16)
-	l.program.Code = []byte{
-		format.CreateOp, 1, 0, 0, 0, 0,
-		format.CallOp, 0, 0, 0, 0, 0,
-	}
-}
-
-func (l *linker) complete() *format.Program {
-	l.program.Classes[1].Name = "progInit"
-	l.methods["call"].impls = append(l.methods["call"].impls, format.Implementation{
-		Class:      1,
-		Method:     0,
-		Kind:       format.StandardBinding,
-		EntryPoint: uint32(len(l.program.Code)),
-	})
-	packages := maps.Values(l.imports)
-	slices.SortFunc(packages, func(left, right *importedPackage) bool {
-		return left.global < right.global
-	})
-	for _, p := range packages {
-		l.addPkgInitCode(p)
-	}
-	l.addMainInitCode()
-	l.determineOffsets()
-	for i, c := range l.program.Classes {
-		if c.Kind == format.UserKind {
-			continue
-		}
-		l.program.CoreKinds[c.Kind] = format.ClassID(i)
-	}
-	return &l.program
+	id    int
+	impls []Implementation
 }
 
 func (l *linker) importPackage(path string) error {
 	if p, ok := l.imports[path]; ok {
-		if p.global == -1 {
+		if p == -1 {
 			return ErrCircularImport
 		}
 		return nil
 	}
-
-	l.imports[path] = &importedPackage{order: len(l.imports), global: -1}
+	l.imports[path] = -1
 
 	p, err := l.env.LoadPackage(path)
 	if err != nil {
@@ -104,145 +82,51 @@ func (l *linker) importPackage(path string) error {
 	}
 
 	for _, q := range p.Imports {
-		if q == "." {
-			continue
-		}
 		err := l.importPackage(q)
 		if err != nil {
 			return err
 		}
 	}
+	l.imports[path] = len(l.program.Included)
+	l.program.Included = append(l.program.Included, path)
 
-	global := l.program.GlobalCount
-	l.program.GlobalCount++
+	for _, m := range p.Methods {
+		l.getMethod(m)
+	}
 
-	class := format.ClassID(len(l.program.Classes))
-	l.program.Classes = append(l.program.Classes, format.Class{Name: "PackageInit"})
-
-	l.addPackageEntry(class)
-	l.appendPackage(p, global)
-
-	l.imports[path].global = global
-	l.imports[path].class = class
+	for i, c := range p.Classes {
+		nextClass := len(l.program.Classes)
+		l.program.Classes = append(l.program.Classes, Class{FieldCount: c.FieldCount})
+		for _, meth := range c.Methods {
+			m := l.getMethod(meth.Name)
+			m.impls = append(m.impls, Implementation{
+				Class:  nextClass,
+				Method: m.id,
+				Symbol: fmt.Sprintf("cz_impl_%s_%d_%s", p.Name, i, meth.Name),
+			})
+		}
+	}
 
 	return nil
 }
 
-func (l *linker) appendPackage(p *format.Package, pkgGlob int32) {
-	l.processRelocations(p, pkgGlob)
-	l.processBindings(p)
-	l.program.ExternalMethods = append(l.program.ExternalMethods, p.ExternalMethods...)
-	l.program.Classes = append(l.program.Classes, p.Classes...)
-	l.program.Code = append(l.program.Code, p.Code...)
-}
-
-func (l *linker) addPackageEntry(packageClass format.ClassID) {
-	l.methods["call"].impls = append(l.methods["call"].impls, format.Implementation{
-		Class:      packageClass,
-		Kind:       format.StandardBinding,
-		EntryPoint: uint32(len(l.program.Code)),
-	})
-}
-
-func (l *linker) addMainInitCode() {
-	initPos := len(l.program.Code)
-
-	l.program.Code = append(l.program.Code,
-		format.GlobalLoadOp, 0, 0, 0, 0,
-		format.CallOp, 0, 0, 0, 0, 0,
-	)
-
-	writeInt32(l.program.Code[initPos+1:], int32(l.imports["main"].global))
-	writeInt32(l.program.Code[initPos+6:], int32(l.methods["main"].id))
-}
-
-func (l *linker) addPkgInitCode(p *importedPackage) {
-	initPos := len(l.program.Code)
-
-	l.program.Code = append(l.program.Code,
-		format.NaturalOp, 2, 0, 0, 0,
-		format.StoreOp, 2,
-		format.NaturalOp, 0, 0, 0, 0,
-		format.StoreOp, 3,
-		format.CreateOp, 0, 0, 0, 0, 0,
-		format.CallOp, 0, 0, 0, 0, 2,
-		format.GlobalStoreOp, 0, 0, 0, 0,
-	)
-
-	writeInt32(l.program.Code[initPos+8:], int32(initPos+26))
-	writeInt32(l.program.Code[initPos+15:], int32(p.class))
-	writeInt32(l.program.Code[initPos+27:], p.global)
-}
-
-func (l *linker) processRelocations(p *format.Package, pkgGlob int32) {
-	var glob int32 = -1
-	for _, rel := range p.Relocations {
-		switch rel.Kind {
-		case format.ClassRel:
-			rel.ID += int32(len(l.program.Classes))
-
-		case format.ImportRel:
-			id := l.importGlobal(p.Imports[rel.ID], pkgGlob)
-			rel.ID = id
-
-		case format.GlobalRel:
-			if rel.ID > glob {
-				glob = rel.ID
-			}
-			rel.ID += l.program.GlobalCount
-
-		case format.CodeRel:
-			rel.ID += int32(len(l.program.Code))
-
-		case format.MethodRel:
-			rel.ID = int32(l.method(p.Methods[rel.ID].Name).id)
-		}
-		writeInt32(p.Code[rel.Pos:], rel.ID)
-	}
-	l.program.GlobalCount += glob + 1
-}
-
-func (l *linker) importGlobal(name string, pkgGlob int32) int32 {
-	if name == "." {
-		return pkgGlob
-	}
-	return l.imports[name].global
-}
-
-func (l *linker) processBindings(p *format.Package) {
-	for _, impl := range p.Implementations {
-		var ep uint32
-		switch impl.Kind {
-		case format.StandardBinding:
-			ep = impl.EntryPoint + uint32(len(l.program.Code))
-		case format.ExternalBinding:
-			ep = impl.EntryPoint + uint32(len(l.program.ExternalMethods))
-		}
-		m := l.method(p.Methods[impl.Method].Name)
-		m.impls = append(m.impls, format.Implementation{
-			Class:      impl.Class + format.ClassID(len(l.program.Classes)),
-			Method:     m.id,
-			Kind:       impl.Kind,
-			EntryPoint: ep,
-		})
-	}
-}
-
-func (l *linker) method(name string) *method {
+func (l *linker) getMethod(name string) *method {
 	if m, ok := l.methods[name]; ok {
 		return m
 	}
-	m := &method{id: format.MethodID(len(l.methods))}
+	m := &method{
+		id: len(l.methods),
+	}
 	l.methods[name] = m
 	return m
 }
 
 func (l *linker) determineOffsets() {
 	methods := make([]format.Method, len(l.methods))
-	var space []format.Implementation
+	var space []Implementation
 
 	for n, m := range l.methods {
-		slices.SortFunc(m.impls, func(l, r format.Implementation) bool {
+		slices.SortFunc(m.impls, func(l, r Implementation) bool {
 			return l.Class < r.Class
 		})
 		if len(m.impls) == 0 {
@@ -256,15 +140,15 @@ func (l *linker) determineOffsets() {
 		space = l.applyOffset(space, m, offset)
 	}
 
-	l.program.Implmentations = space
+	l.program.Implementations = space
 	l.program.Methods = methods
 }
 
-func findOffset(space []format.Implementation, m *method) int32 {
+func findOffset(space []Implementation, m *method) int {
 next:
-	for i := -int(m.impls[0].Class); i < len(space); i++ {
+	for i := -m.impls[0].Class; i < len(space); i++ {
 		for _, impl := range m.impls {
-			off := int(impl.Class) + i
+			off := impl.Class + i
 			if off >= len(space) {
 				continue
 			}
@@ -272,26 +156,20 @@ next:
 				continue next
 			}
 		}
-		return int32(i)
+		return i
 	}
 
-	return int32(len(space))
+	return len(space)
 }
 
-func (l *linker) applyOffset(space []format.Implementation, m *method, offset int32) []format.Implementation {
-	if c := int(offset + int32(m.impls[len(m.impls)-1].Class)); c >= len(space) {
-		space = append(space, make([]format.Implementation, 1+c-len(space))...)
+func (l *linker) applyOffset(space []Implementation, m *method, offset int) []Implementation {
+	if c := offset + m.impls[len(m.impls)-1].Class; c >= len(space) {
+		space = append(space, make([]Implementation, 1+c-len(space))...)
 	}
 
 	for _, impl := range m.impls {
-		space[impl.Class+format.ClassID(offset)] = impl
+		space[impl.Class+offset] = impl
 	}
 
 	return space
-}
-
-func writeInt32(into []byte, x int32) {
-	for i := 0; i < 4; i++ {
-		into[i] = byte(x >> (i * 8))
-	}
 }

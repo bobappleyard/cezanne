@@ -1,13 +1,12 @@
 package linker
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/bobappleyard/cezanne/assert"
 	"github.com/bobappleyard/cezanne/format"
-	"github.com/bobappleyard/cezanne/format/assembly"
-	"github.com/bobappleyard/cezanne/runtime/api"
-	"github.com/bobappleyard/cezanne/runtime/env"
+	"github.com/bobappleyard/cezanne/must"
 )
 
 type mockLinkerEnv map[string]*format.Package
@@ -37,87 +36,39 @@ func TestCircularImports(t *testing.T) {
 
 func TestLink(t *testing.T) {
 	prog, err := Link(mockLinkerEnv{
-		"main": mainPackage(),
-		"dep":  depPackage(),
-		"core": corePackage(),
+		"main": &format.Package{
+			Name:    "main",
+			Imports: []string{"core", "dep"},
+		},
+		"dep": &format.Package{
+			Name: "dep",
+		},
+		"core": &format.Package{
+			Name: "core",
+			Classes: []format.Class{
+				{
+					FieldCount: 0,
+					Methods: []format.Method{
+						{Name: "add"},
+						{Name: "sub"},
+						{Name: "mul"},
+						{Name: "div"},
+					},
+				},
+				{
+					FieldCount: 0,
+					Methods: []format.Method{
+						{Name: "add"},
+						{Name: "sub"},
+						{Name: "mul"},
+						{Name: "div"},
+						{Name: "to_float"},
+					},
+				},
+			},
+		},
 	})
 	assert.Nil(t, err)
-	t.Log(prog)
-
-	e := new(env.Env)
-	e.SetHeapSize(32)
-
-	var res api.Object
-	e.AddExternalMethod("test:result", func(p *env.Thread, recv api.Object) {
-		res = p.Arg(0)
-		p.Return(p.Process().Int(0))
-	})
-
-	e.AddExternalMethod("core:int_add", func(p *env.Thread, recv api.Object) {
-		p.Return(p.Process().Int(p.Process().AsInt(p.Arg(0)) + p.Process().AsInt(p.Arg(1))))
-	})
-
-	e.Run(prog)
-
-	assert.Equal(t, res, api.Object{Class: prog.CoreKinds[format.IntKind], Data: 10})
-}
-
-func mainPackage() *format.Package {
-	var b assembly.Writer
-
-	k := b.Location()
-	core := b.Global(0)
-	pkg := b.Class(0)
-
-	b.Create(pkg, 0)
-	b.Return()
-
-	b.ImplementMethod(pkg, b.Method("main"))
-	b.GlobalLoad(b.Import("core"))
-	b.GlobalStore(core)
-	b.Natural(b.Fixed(2))
-	b.Store(2)
-	b.Natural(k)
-	b.Store(3)
-	b.Natural(b.Fixed(5))
-	b.Store(4)
-	b.GlobalLoad(b.Import("dep"))
-	b.Call(b.Method("add5"), 2)
-	k.Define()
-	b.Store(2)
-	b.GlobalLoad(core)
-	b.Call(b.Method("result"), 0)
-
-	return b.Package()
-}
-
-func depPackage() *format.Package {
-	var b assembly.Writer
-
-	pkg := b.Class(0)
-
-	b.Create(pkg, 0)
-	b.Return()
-
-	b.ImplementMethod(pkg, b.Method("add5"))
-	b.Natural(b.Fixed(5))
-	b.Store(3)
-	b.GlobalLoad(b.Import("core"))
-	b.Call(b.Method("int_add"), 0)
-
-	return b.Package()
-}
-
-func corePackage() *format.Package {
-	var b assembly.Writer
-
-	pkg := b.Class(0)
-
-	b.Create(pkg, 0)
-	b.Return()
-
-	b.ImplementExternalMethod(pkg, b.Method("result"), "test:result")
-	b.ImplementExternalMethod(pkg, b.Method("int_add"), "core:int_add")
-
-	return b.Package()
+	t.Log(string(must.Be(json.Marshal(prog))))
+	t.Fail()
 }
