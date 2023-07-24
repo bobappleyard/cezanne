@@ -8,9 +8,9 @@ import (
 	"github.com/bobappleyard/cezanne/compiler/ast"
 	"github.com/bobappleyard/cezanne/compiler/backend"
 	"github.com/bobappleyard/cezanne/compiler/parser"
+	"github.com/bobappleyard/cezanne/cz-link/linker"
 	"github.com/bobappleyard/cezanne/format"
 	"github.com/bobappleyard/cezanne/format/assembly"
-	"github.com/bobappleyard/cezanne/linker"
 	"github.com/bobappleyard/cezanne/runtime/api"
 	"github.com/bobappleyard/cezanne/runtime/env"
 )

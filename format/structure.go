@@ -3,7 +3,7 @@ package format
 type Package struct {
 	Name    string
 	Imports []string
-	Methods []string
+	Methods []Method
 	Classes []Class
 }
 

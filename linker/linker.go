@@ -19,13 +19,19 @@ type LinkerEnv interface {
 }
 
 type Program struct {
-	Included        []string
+	Included        []Package
 	Classes         []Class
 	Methods         []format.Method
 	Implementations []Implementation
 }
 
+type Package struct {
+	Path   string
+	Offset int
+}
+
 type Class struct {
+	ID         int
 	FieldCount int
 }
 
@@ -38,7 +44,7 @@ type Implementation struct {
 // Given a collection of packages keyed by path, create a program by starting
 // with the "main" package and taking the transitive closure of the import
 // relation.
-func Link(env LinkerEnv) (*Program, error) {
+func Link(env LinkerEnv, start string) (*Program, error) {
 	l := &linker{
 		env: env,
 		program: Program{
@@ -47,7 +53,7 @@ func Link(env LinkerEnv) (*Program, error) {
 		imports: map[string]int{},
 		methods: map[string]*method{},
 	}
-	err := l.importPackage("main")
+	err := l.importPackage(start)
 	if err != nil {
 		return nil, err
 	}
@@ -88,15 +94,21 @@ func (l *linker) importPackage(path string) error {
 		}
 	}
 	l.imports[path] = len(l.program.Included)
-	l.program.Included = append(l.program.Included, path)
+	l.program.Included = append(l.program.Included, Package{
+		Path:   path,
+		Offset: len(l.program.Classes),
+	})
 
 	for _, m := range p.Methods {
-		l.getMethod(m)
+		l.getMethod(m.Name)
 	}
 
 	for i, c := range p.Classes {
 		nextClass := len(l.program.Classes)
-		l.program.Classes = append(l.program.Classes, Class{FieldCount: c.FieldCount})
+		l.program.Classes = append(l.program.Classes, Class{
+			ID:         nextClass,
+			FieldCount: c.FieldCount,
+		})
 		for _, meth := range c.Methods {
 			m := l.getMethod(meth.Name)
 			m.impls = append(m.impls, Implementation{

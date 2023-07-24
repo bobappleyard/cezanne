@@ -15,6 +15,10 @@ type step interface {
 
 type variable int
 
+func (v variable) offset(x int) variable {
+	return v + variable(x)
+}
+
 type stringStep struct {
 	val  string
 	into variable
@@ -36,11 +40,6 @@ type fieldStep struct {
 }
 
 type globalStep struct {
-	from int
-	into variable
-}
-
-type importStep struct {
 	from string
 	into variable
 }
@@ -60,23 +59,29 @@ type returnStep struct {
 	val variable
 }
 
-type callStep struct {
+type callMethodStep struct {
 	into   variable
 	object variable
 	method string
 	params []variable
 }
 
-func (stringStep) step()      {}
-func (intStep) step()         {}
-func (localStep) step()       {}
-func (fieldStep) step()       {}
-func (globalStep) step()      {}
-func (importStep) step()      {}
-func (returnStep) step()      {}
-func (createStep) step()      {}
-func (callStep) step()        {}
-func (globalStoreStep) step() {}
+type callFunctionStep struct {
+	into   variable
+	method string
+	params []variable
+}
+
+func (stringStep) step()       {}
+func (intStep) step()          {}
+func (localStep) step()        {}
+func (fieldStep) step()        {}
+func (globalStep) step()       {}
+func (returnStep) step()       {}
+func (createStep) step()       {}
+func (callMethodStep) step()   {}
+func (callFunctionStep) step() {}
+func (globalStoreStep) step()  {}
 
 func (b *method) nextVar() variable {
 	res := variable(b.varc)

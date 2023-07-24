@@ -9,8 +9,8 @@ import (
 )
 
 type scope struct {
+	pkgName string
 	this    variable
-	imports []string
 	vars    map[string]binding
 }
 
@@ -49,7 +49,7 @@ func (s scope) enter(bound, free []string) scope {
 		vars[v] = binding{kind: localBinding, offset: i}
 	}
 	vars["this"] = binding{kind: localBinding, offset: len(bound)}
-	return scope{imports: s.imports, vars: vars, this: variable(len(bound))}
+	return scope{pkgName: s.pkgName, vars: vars, this: variable(len(bound))}
 }
 
 func interpretExpr(s scope, dest *method, src ast.Expr) variable {
@@ -86,12 +86,15 @@ func interpretExpr(s scope, dest *method, src ast.Expr) variable {
 		if isGlobalMethodCall(s, src) {
 			return interpretGlobalMethodCall(s, dest, src.Object.(ast.Ref), params)
 		}
+		if isImportMethodCall(s, src) {
+			return interpretImportMethodCall(s, dest, src.Object.(ast.Ref), src.Name, params)
+		}
 
 		object := interpretExpr(s, dest, src.Object)
 		v := dest.nextVar()
-		dest.steps = append(dest.steps, callStep{
+		dest.steps = append(dest.steps, callMethodStep{
 			object: object,
-			method: src.Name,
+			method: fmt.Sprintf("cz_m_%s", src.Name),
 			params: params,
 			into:   v,
 		})
@@ -107,17 +110,28 @@ func isGlobalMethodCall(s scope, src ast.Invoke) bool {
 	return ok && src.Name == "call" && s.lookup(o.Name).kind == globalMethodBinding
 }
 
+func isImportMethodCall(s scope, src ast.Invoke) bool {
+	o, ok := src.Object.(ast.Ref)
+	return ok && s.lookup(o.Name).kind == importBinding
+}
+
 func interpretGlobalMethodCall(s scope, dest *method, src ast.Ref, params []variable) variable {
-	u := dest.nextVar()
-	dest.steps = append(dest.steps, importStep{
-		from: ".",
-		into: u,
+	v := dest.nextVar()
+
+	dest.steps = append(dest.steps, callFunctionStep{
+		method: fmt.Sprintf("cz_impl_%s_%s", s.pkgName, src.Name),
+		params: params,
+		into:   v,
 	})
 
+	return v
+}
+
+func interpretImportMethodCall(s scope, dest *method, src ast.Ref, name string, params []variable) variable {
 	v := dest.nextVar()
-	dest.steps = append(dest.steps, callStep{
-		object: u,
-		method: src.Name,
+
+	dest.steps = append(dest.steps, callFunctionStep{
+		method: fmt.Sprintf("cz_impl_%s_%s", src.Name, name),
 		params: params,
 		into:   v,
 	})
@@ -132,12 +146,7 @@ func interpretLookup(s scope, dest *method, name string) variable {
 		return variable(b.offset)
 
 	case importBinding:
-		v := dest.nextVar()
-		dest.steps = append(dest.steps, importStep{
-			from: s.imports[b.offset],
-			into: v,
-		})
-		return v
+		panic("refering to package as object")
 
 	case closureBinding:
 		v := dest.nextVar()
@@ -152,6 +161,19 @@ func interpretLookup(s scope, dest *method, name string) variable {
 		panic(fmt.Sprintf("unknown variable %s", name))
 
 	}
+}
+
+func interpretFunction(s scope, f ast.Method) method {
+	res := method{
+		name: f.Name,
+		argc: len(f.Args),
+		varc: len(f.Args),
+	}
+
+	v := interpretExpr(s.enter(f.Args, nil), &res, f.Body)
+	res.steps = append(res.steps, returnStep{val: v})
+
+	return res
 }
 
 func interpretClass(s scope, methods []ast.Method) ([]method, []string) {

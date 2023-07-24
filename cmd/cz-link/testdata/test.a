@@ -1,0 +1,12 @@
+!<arch>
+link.json/      0           0     0     644     171       `
+{
+    "Name": "test",
+    "Imports": [],
+    "Methods": [{"Name":"a"}],
+    "Classes":  [
+        {"Methods": [{"Name":"a"}]},
+        {"Methods": [{"Name":"a"}]}
+    ]
+}
+

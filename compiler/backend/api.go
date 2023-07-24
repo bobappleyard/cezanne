@@ -1,25 +1,36 @@
 package backend
 
 import (
+	"bytes"
+	"fmt"
+
 	"github.com/bobappleyard/cezanne/compiler/ast"
 	"github.com/bobappleyard/cezanne/format"
 )
 
-func BuildPackage(pkg ast.Package) (*format.Package, error) {
-	var root method
-	pkgObject := interpretExpr(globalScope(pkg), &root, buildRoot(pkg))
-	root.steps = append(root.steps, returnStep{val: pkgObject})
-
+func BuildPackage(pkg ast.Package) ([]byte, *format.Package, error) {
 	var asm assembler
-	asm.writePackage(root)
+	asm.dest.meta.Name = pkg.Name
 
-	return asm.dest.Package(), nil
-}
-
-func buildRoot(pkg ast.Package) ast.Expr {
-	return ast.Create{
-		Methods: pkg.Funcs,
+	s := globalScope(pkg)
+	for _, f := range pkg.Funcs {
+		asm.writeFunction(s, f)
 	}
+	asm.writePackageInit()
+	asm.processPending()
+
+	var body bytes.Buffer
+	fmt.Fprintln(&body, "#include <cz.h>")
+	fmt.Fprintln(&body)
+	fmt.Fprintf(&body, "extern const int cz_classes_%s;\n", pkg.Name)
+	fmt.Fprintln(&body)
+
+	asm.dest.prefix.WriteTo(&body)
+	fmt.Fprintln(&body)
+
+	asm.dest.code.WriteTo(&body)
+
+	return body.Bytes(), &asm.dest.meta, nil
 }
 
 func globalScope(pkg ast.Package) scope {
@@ -37,5 +48,5 @@ func globalScope(pkg ast.Package) scope {
 			kind: globalMethodBinding,
 		}
 	}
-	return scope{vars: vars, imports: imports}
+	return scope{vars: vars, pkgName: pkg.Name}
 }

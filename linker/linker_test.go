@@ -29,7 +29,7 @@ func TestCircularImports(t *testing.T) {
 		"b": &format.Package{
 			Imports: []string{"a"},
 		},
-	})
+	}, "main")
 	assert.Nil(t, prog)
 	assert.Equal(t, err, ErrCircularImport)
 }
@@ -67,8 +67,47 @@ func TestLink(t *testing.T) {
 				},
 			},
 		},
-	})
+	}, "main")
 	assert.Nil(t, err)
 	t.Log(string(must.Be(json.Marshal(prog))))
+	// t.Fail()
+}
+
+func TestRender(t *testing.T) {
+	prog, err := Link(mockLinkerEnv{
+		"main": &format.Package{
+			Name:    "main",
+			Imports: []string{"core", "dep"},
+		},
+		"dep": &format.Package{
+			Name: "dep",
+		},
+		"core": &format.Package{
+			Name: "core",
+			Classes: []format.Class{
+				{
+					FieldCount: 0,
+					Methods: []format.Method{
+						{Name: "add"},
+						{Name: "sub"},
+						{Name: "mul"},
+						{Name: "div"},
+					},
+				},
+				{
+					FieldCount: 0,
+					Methods: []format.Method{
+						{Name: "add"},
+						{Name: "sub"},
+						{Name: "mul"},
+						{Name: "div"},
+						{Name: "to_float"},
+					},
+				},
+			},
+		},
+	}, "main")
+	assert.Nil(t, err)
+	t.Log(string(Render(prog)))
 	t.Fail()
 }
