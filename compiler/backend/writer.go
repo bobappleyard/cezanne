@@ -14,18 +14,19 @@ type assemblyWriter struct {
 	meta   format.Package
 }
 
-func (w *assemblyWriter) ImplementFunction(name string, block func()) {
+func (w *assemblyWriter) ImplementFunction(name string, argc, varc int, block func()) {
 	fmt.Fprintf(&w.code, "extern void cz_impl_%s_%s() {\n", w.meta.Name, name)
-	fmt.Fprintln(&w.code, "    CZ_PROLOG();")
+	fmt.Fprintf(&w.code, "    CZ_PROLOG(%d, %d);\n", argc, varc)
 	block()
 	fmt.Fprintln(&w.code, "    CZ_EPILOG();")
 	fmt.Fprintln(&w.code, "}")
 	fmt.Fprintln(&w.code)
 }
 
-func (w *assemblyWriter) ImplementMethod(classID int, method string, block func()) {
+func (w *assemblyWriter) ImplementMethod(classID int, method string, argc, varc int, block func()) {
+	w.addMethod(method)
 	fmt.Fprintf(&w.code, "extern void cz_impl_%s_%d_%s() {\n", w.meta.Name, classID, method)
-	fmt.Fprintln(&w.code, "    CZ_PROLOG();")
+	fmt.Fprintf(&w.code, "    CZ_PROLOG(%d, %d);\n", argc, varc)
 	block()
 	fmt.Fprintln(&w.code, "    CZ_EPILOG();")
 	fmt.Fprintln(&w.code, "}")

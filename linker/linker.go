@@ -26,6 +26,7 @@ type Program struct {
 }
 
 type Package struct {
+	Name   string
 	Path   string
 	Offset int
 }
@@ -95,6 +96,7 @@ func (l *linker) importPackage(path string) error {
 	}
 	l.imports[path] = len(l.program.Included)
 	l.program.Included = append(l.program.Included, Package{
+		Name:   p.Name,
 		Path:   path,
 		Offset: len(l.program.Classes),
 	})

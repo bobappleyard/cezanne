@@ -2,40 +2,46 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"io"
 	"os"
 	"path/filepath"
 
-	"github.com/bobappleyard/cezanne/cc"
 	"github.com/bobappleyard/cezanne/format"
 	"github.com/bobappleyard/cezanne/linker"
 	"github.com/bobappleyard/cezanne/must"
-	"github.com/bobappleyard/cezanne/slices"
 	ar "github.com/mkrautz/goar"
 )
 
+var (
+	includePath = flag.String("i", "", "path to source packages")
+	outputPath  = flag.String("o", "", "path to store linker C file")
+	packageName = flag.String("p", "", "name of main package")
+)
+
 func main() {
-	e := &env{base: "./build"}
-	target := os.Args[1]
-	prog := must.Be(linker.Link(e, target))
-	f := must.Be(e.LinkFile())
+	flag.Parse()
+
+	e := &env{base: *includePath}
+	prog := must.Be(linker.Link(e, *packageName))
+
+	f := must.Be(os.Create(*outputPath))
+	defer f.Close()
+
 	must.Succeed(Render(f, prog))
-	must.Succeed(f.Close())
-	must.Succeed(cc.Compile(filepath.Join(e.base, "link.o"), filepath.Join(e.base, "link.c"), "."))
-	sources := []string{filepath.Join(e.base, "link.o"), "main.o"}
-	sources = append(sources, slices.Map(prog.Included, func(x linker.Package) string {
-		return filepath.Join(e.base, x.Path+".a")
-	})...)
-	must.Succeed(cc.Link(target, sources))
 }
 
 type env struct {
 	base string
 }
 
+func (e *env) PackagePath(path string) string {
+	return filepath.Join(e.base, path+".a")
+}
+
 // LoadPackage implements linker.LinkerEnv.
 func (e *env) LoadPackage(path string) (*format.Package, error) {
-	f, err := os.Open(filepath.Join(e.base, path+".a"))
+	f, err := os.Open(e.PackagePath(path))
 	if err != nil {
 		return nil, err
 	}
@@ -62,8 +68,4 @@ func (e *env) LoadPackage(path string) (*format.Package, error) {
 		return nil, err
 	}
 	return &pkg, nil
-}
-
-func (e *env) LinkFile() (*os.File, error) {
-	return os.Create(filepath.Join(e.base, "link.c"))
 }

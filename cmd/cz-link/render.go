@@ -17,7 +17,7 @@ var tmpl = must.Be(template.New("").Parse(`
 #include <cz.h>
 
 {{range .Included}}
-const int cz_classes_{{.Path}} = {{.Offset}};
+const int cz_classes_{{.Name}} = {{.Offset}};
 {{end}}
 
 const cz_class_t cz_classes[{{len .Classes}}] = {
@@ -45,12 +45,12 @@ extern void cz_m_{{.Name}}() {
 {{end}}
 
 {{range .Included}}
-extern void cz_impl_{{.Path}}();
+extern void cz_impl_{{.Name}}();
 {{end}}
 extern void cz_init() {
-	CZ_PROLOG();
+	CZ_PROLOG(0, 0);
 {{range .Included}}
-	CZ_CALL(cz_impl_{{.Path}}, 0);
+	CZ_CALL(cz_impl_{{.Name}}, 0);
 {{end}}
 	CZ_RETURN();
 	CZ_EPILOG();

@@ -1,0 +1,17 @@
+{
+    "Name": "test",
+    "Methods": [
+        {"Name": "true"},
+        {"Name": "false"}
+    ],
+    "Classes": [
+        {
+            "FieldCount": 0,
+            "Methods": [{"Name": "match"}]
+        },
+        {
+            "FieldCount": 0,
+            "Methods": [{"Name": "match"}]
+        }
+    ]
+}

@@ -1,16 +1,16 @@
 package backend
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/bobappleyard/cezanne/assert"
 	"github.com/bobappleyard/cezanne/compiler/ast"
+	"github.com/bobappleyard/cezanne/format"
 )
 
 func TestBuildPackage(t *testing.T) {
 
-	body, meta, err := BuildPackage(ast.Package{
+	_, meta, err := BuildPackage(ast.Package{
 		Name: "main",
 		Imports: []ast.Import{
 			{Name: "test", Path: "test"},
@@ -79,9 +79,23 @@ func TestBuildPackage(t *testing.T) {
 	})
 	assert.Nil(t, err)
 
-	fmt.Printf("%s", body)
-
-	assert.Equal(t, body, []byte{})
-	assert.Equal(t, meta, nil)
+	assert.Equal(t, meta, &format.Package{
+		Name:    "main",
+		Imports: []string{"test"},
+		Methods: []format.Method{
+			{Name: "match"},
+			{Name: "true"},
+			{Name: "false"},
+		},
+		Classes: []format.Class{
+			{
+				FieldCount: 1,
+				Methods: []format.Method{
+					{Name: "true"},
+					{Name: "false"},
+				},
+			},
+		},
+	})
 
 }

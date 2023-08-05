@@ -94,7 +94,7 @@ func interpretExpr(s scope, dest *method, src ast.Expr) variable {
 		v := dest.nextVar()
 		dest.steps = append(dest.steps, callMethodStep{
 			object: object,
-			method: fmt.Sprintf("cz_m_%s", src.Name),
+			method: src.Name,
 			params: params,
 			into:   v,
 		})

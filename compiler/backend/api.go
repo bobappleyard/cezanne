@@ -11,6 +11,9 @@ import (
 func BuildPackage(pkg ast.Package) ([]byte, *format.Package, error) {
 	var asm assembler
 	asm.dest.meta.Name = pkg.Name
+	for _, imp := range pkg.Imports {
+		asm.dest.meta.Imports = append(asm.dest.meta.Imports, imp.Path)
+	}
 
 	s := globalScope(pkg)
 	for _, f := range pkg.Funcs {

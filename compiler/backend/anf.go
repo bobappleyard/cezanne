@@ -9,6 +9,27 @@ type method struct {
 	steps      []step
 }
 
+// space used by method for the purposes of GC
+// this is local vars + longest param list of called function
+func (m method) usedSpace() int {
+	var called int
+	for _, s := range m.steps {
+		var candidate int
+		switch s := s.(type) {
+		case createStep:
+			candidate = len(s.fields)
+		case callFunctionStep:
+			candidate = len(s.params)
+		case callMethodStep:
+			candidate = len(s.params)
+		}
+		if candidate > called {
+			called = candidate
+		}
+	}
+	return m.varc + called
+}
+
 type step interface {
 	step()
 }

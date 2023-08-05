@@ -1,0 +1,12 @@
+import test
+
+func main() {
+	test.print(fac(6))
+}
+
+func fac(n) { 
+	test.lte(n, 1).match(object {
+		true() { 1 }
+		false() { test.mul(n, fac(test.sub(n, 1))) }
+	})
+}

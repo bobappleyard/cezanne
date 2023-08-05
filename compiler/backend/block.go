@@ -8,8 +8,6 @@ import (
 	"github.com/bobappleyard/cezanne/slices"
 )
 
-const baseRegister variable = 0
-
 type assembler struct {
 	dest    assemblyWriter
 	pending []pendingWork
@@ -21,8 +19,9 @@ type pendingWork struct {
 }
 
 func (w *assembler) writeFunction(s scope, f ast.Method) {
-	w.dest.ImplementFunction(f.Name, func() {
-		w.writeBlock(interpretFunction(s, f))
+	fn := interpretFunction(s, f)
+	w.dest.ImplementFunction(f.Name, fn.argc, fn.usedSpace(), func() {
+		w.writeBlock(fn)
 	})
 }
 
@@ -31,8 +30,8 @@ func (w *assembler) processPending() {
 		next := w.pending[0]
 		w.pending = w.pending[1:]
 		for _, m := range next.methods {
-			w.dest.ImplementMethod(next.class, m.name, func() {
-				w.dest.Store(baseRegister.offset(m.argc))
+			w.dest.ImplementMethod(next.class, m.name, m.argc, m.usedSpace(), func() {
+				w.dest.Store(variable(m.argc))
 				w.writeBlock(m)
 			})
 		}
@@ -41,9 +40,11 @@ func (w *assembler) processPending() {
 
 func (w *assembler) writePackageInit() {
 	fmt.Fprintf(&w.dest.code, "extern void cz_impl_%s() {\n", w.dest.meta.Name)
+	// code to initialise globals goes here
+
+	fmt.Fprintln(&w.dest.code, "    CZ_RETURN();")
 	fmt.Fprintln(&w.dest.code, "}")
 	fmt.Fprintln(&w.dest.code)
-
 }
 
 func (w *assembler) writeBlock(src method) {
@@ -52,21 +53,21 @@ func (w *assembler) writeBlock(src method) {
 
 		case intStep:
 			w.dest.Natural(s.val)
-			w.dest.Store(s.into + baseRegister)
+			w.dest.Store(s.into)
 
 		case localStep:
-			w.dest.Load(s.from + baseRegister)
-			w.dest.Store(s.into + baseRegister)
+			w.dest.Load(s.from)
+			w.dest.Store(s.into)
 
 		case fieldStep:
-			w.dest.Load(s.from + baseRegister)
+			w.dest.Load(s.from)
 			w.dest.Field(s.field)
-			w.dest.Store(s.into + baseRegister)
+			w.dest.Store(s.into)
 
 		case createStep:
 			for i, f := range s.fields {
-				w.dest.Load(f + baseRegister)
-				w.dest.Store(baseRegister.offset(src.varc + i))
+				w.dest.Load(f)
+				w.dest.Store(variable(src.varc + i))
 			}
 			classID := len(w.dest.meta.Classes)
 			w.dest.meta.Classes = append(w.dest.meta.Classes, format.Class{
@@ -77,31 +78,34 @@ func (w *assembler) writeBlock(src method) {
 			})
 			pending := pendingWork{classID, s.methods}
 			w.pending = append(w.pending, pending)
-			w.dest.Create(classID, baseRegister.offset(src.varc))
-			w.dest.Store(s.into + baseRegister)
+			w.dest.Create(classID, variable(src.varc))
+			w.dest.Store(s.into)
 
 		case returnStep:
-			w.dest.Load(s.val + baseRegister)
+			w.dest.Load(s.val)
 			w.dest.Return()
 
 		case callMethodStep:
+			w.dest.addMethod(s.method)
+			method := fmt.Sprintf("cz_m_%s", s.method)
+
 			if isTailCall(src.steps[p+1:], s.into) {
-				w.dest.Load(s.object + baseRegister)
-				w.dest.Store(baseRegister.offset(src.varc))
+				w.dest.Load(s.object)
+				w.dest.Store(variable(src.varc))
 				w.compileTailArgs(src, s.params)
-				w.dest.Load(baseRegister.offset(src.varc))
-				w.dest.FunctionCallTail(s.method)
+				w.dest.Load(variable(src.varc))
+				w.dest.FunctionCallTail(method)
 				// we do this to skip the final return instruction
 				return
 
 			} else {
 				for i, f := range s.params {
-					w.dest.Load(f + baseRegister)
-					w.dest.Store(baseRegister.offset(src.varc + i))
+					w.dest.Load(f)
+					w.dest.Store(variable(src.varc + i))
 				}
-				w.dest.Load(s.object + baseRegister)
-				w.dest.FunctionCall(s.method, baseRegister.offset(src.varc))
-				w.dest.Store(s.into + baseRegister)
+				w.dest.Load(s.object)
+				w.dest.FunctionCall(method, variable(src.varc))
+				w.dest.Store(s.into)
 			}
 
 		case callFunctionStep:
@@ -113,11 +117,11 @@ func (w *assembler) writeBlock(src method) {
 
 			} else {
 				for i, f := range s.params {
-					w.dest.Load(f + baseRegister)
-					w.dest.Store(baseRegister.offset(src.varc + i))
+					w.dest.Load(f)
+					w.dest.Store(variable(src.varc + i))
 				}
-				w.dest.FunctionCall(s.method, baseRegister.offset(src.varc))
-				w.dest.Store(s.into + baseRegister)
+				w.dest.FunctionCall(s.method, variable(src.varc))
+				w.dest.Store(s.into)
 			}
 
 		default:
@@ -129,12 +133,12 @@ func (w *assembler) writeBlock(src method) {
 
 func (w *assembler) compileTailArgs(src method, params []variable) {
 	for i, f := range params {
-		w.dest.Load(f + baseRegister)
-		w.dest.Store(baseRegister.offset(src.varc+i) + 1)
+		w.dest.Load(f)
+		w.dest.Store(variable(src.varc+i) + 1)
 	}
 	for i := range params {
-		w.dest.Load(baseRegister.offset(src.varc+i) + 1)
-		w.dest.Store(baseRegister.offset(i))
+		w.dest.Load(variable(src.varc+i) + 1)
+		w.dest.Store(variable(i))
 	}
 }
 
