@@ -3,8 +3,10 @@ package linker
 import (
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/bobappleyard/cezanne/format"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
@@ -71,6 +73,7 @@ type linker struct {
 
 type method struct {
 	id    int
+	name  string
 	impls []Implementation
 }
 
@@ -129,7 +132,8 @@ func (l *linker) getMethod(name string) *method {
 		return m
 	}
 	m := &method{
-		id: len(l.methods),
+		id:   len(l.methods),
+		name: name,
 	}
 	l.methods[name] = m
 	return m
@@ -139,16 +143,29 @@ func (l *linker) determineOffsets() {
 	methods := make([]format.Method, len(l.methods))
 	var space []Implementation
 
-	for n, m := range l.methods {
+	ms := maps.Values(l.methods)
+	sort.Slice(ms, func(i, j int) bool {
+		m, n := ms[i], ms[j]
+		if len(m.impls) == len(n.impls) {
+			return m.name < n.name
+		}
+		return len(m.impls) < len(n.impls)
+	})
+
+	for _, m := range ms {
 		slices.SortFunc(m.impls, func(l, r Implementation) bool {
 			return l.Class < r.Class
 		})
 		if len(m.impls) == 0 {
+			methods[m.id] = format.Method{
+				Name:   m.name,
+				Offset: 0,
+			}
 			continue
 		}
 		offset := findOffset(space, m)
 		methods[m.id] = format.Method{
-			Name:   n,
+			Name:   m.name,
 			Offset: offset,
 		}
 		space = l.applyOffset(space, m, offset)

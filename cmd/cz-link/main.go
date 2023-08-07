@@ -28,7 +28,7 @@ func main() {
 	f := must.Be(os.Create(*outputPath))
 	defer f.Close()
 
-	must.Succeed(Render(f, prog))
+	must.Succeed(linker.Render(f, prog))
 }
 
 type env struct {
