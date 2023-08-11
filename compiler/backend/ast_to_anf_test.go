@@ -1,9 +1,9 @@
 package backend
 
 import (
-	"fmt"
 	"testing"
 
+	"github.com/bobappleyard/cezanne/assert"
 	"github.com/bobappleyard/cezanne/compiler/ast"
 )
 
@@ -29,8 +29,29 @@ func TestInterpretExpr(t *testing.T) {
 		Args: []ast.Expr{ast.Int{Value: 1}},
 	})
 
-	for _, s := range m.steps {
-		fmt.Printf("%#v\n", s)
-	}
 	// t.Fail()
+}
+
+func TestReuseVariables(t *testing.T) {
+	m := method{
+		steps: []step{
+			intStep{into: 0},
+			localStep{from: 0, into: 1},
+			createStep{into: 3, fields: []variable{0, 1}},
+			fieldStep{from: 3, into: 4},
+			callMethodStep{into: 5, object: 4, params: []variable{3}},
+		},
+		varc: 5,
+	}
+
+	reuseVariables(&m, false)
+
+	assert.Equal(t, m.steps, []step{
+		intStep{into: 0},
+		localStep{from: 0, into: 1},
+		createStep{into: 0, fields: []variable{0, 1}},
+		fieldStep{from: 0, into: 1},
+		callMethodStep{into: 0, object: 1, params: []variable{0}},
+	})
+	assert.Equal(t, m.varc, 2)
 }

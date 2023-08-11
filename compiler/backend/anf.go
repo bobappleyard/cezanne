@@ -1,8 +1,5 @@
 package backend
 
-type pkg struct {
-}
-
 type method struct {
 	name       string
 	argc, varc int

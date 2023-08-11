@@ -73,8 +73,8 @@ extern const cz_impl_t cz_impls[];
     cz_call_stack[cz_stack_pos].impl = (f);                         \
     cz_call_stack[cz_stack_pos].data_pos = cz_data_pos + (p);       \
     return;                                                         \
-    case __LINE__:                                                  \
-} while(0)
+} while(0);                                                         \
+    case __LINE__:                                                  
 
 #define CZ_CALL_TAIL(f) do {                                        \
     cz_call_stack[cz_stack_pos].k = 0;                              \

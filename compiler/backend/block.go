@@ -21,6 +21,7 @@ type pendingWork struct {
 func (w *assembler) writeFunction(s scope, f ast.Method) {
 	fn := interpretFunction(s, f)
 	w.dest.ImplementFunction(f.Name, fn.argc, fn.usedSpace(), func() {
+		reuseVariables(&fn, false)
 		w.writeBlock(fn)
 	})
 }
@@ -31,6 +32,7 @@ func (w *assembler) processPending() {
 		w.pending = w.pending[1:]
 		for _, m := range next.methods {
 			w.dest.ImplementMethod(next.class, m.name, m.argc, m.usedSpace(), func() {
+				reuseVariables(&m, true)
 				w.dest.Store(variable(m.argc))
 				w.writeBlock(m)
 			})
@@ -39,15 +41,14 @@ func (w *assembler) processPending() {
 }
 
 func (w *assembler) writePackageInit() {
-	fmt.Fprintf(&w.dest.code, "extern void cz_impl_%s() {\n", w.dest.meta.Name)
-	// code to initialise globals goes here
-
-	fmt.Fprintln(&w.dest.code, "    CZ_RETURN();")
-	fmt.Fprintln(&w.dest.code, "}")
-	fmt.Fprintln(&w.dest.code)
+	w.dest.ImplementInit(0, func() {
+		// code to initialise globals goes here
+		w.dest.Return()
+	})
 }
 
 func (w *assembler) writeBlock(src method) {
+
 	for p, s := range src.steps {
 		switch s := s.(type) {
 
@@ -78,7 +79,7 @@ func (w *assembler) writeBlock(src method) {
 			})
 			pending := pendingWork{classID, s.methods}
 			w.pending = append(w.pending, pending)
-			w.dest.Create(classID, variable(src.varc))
+			w.dest.Create(classID, src.varc)
 			w.dest.Store(s.into)
 
 		case returnStep:
@@ -94,7 +95,7 @@ func (w *assembler) writeBlock(src method) {
 				w.dest.Store(variable(src.varc))
 				w.compileTailArgs(src, s.params)
 				w.dest.Load(variable(src.varc))
-				w.dest.FunctionCallTail(method)
+				w.dest.Call(method, 0)
 				// we do this to skip the final return instruction
 				return
 
@@ -104,14 +105,14 @@ func (w *assembler) writeBlock(src method) {
 					w.dest.Store(variable(src.varc + i))
 				}
 				w.dest.Load(s.object)
-				w.dest.FunctionCall(method, variable(src.varc))
+				w.dest.Call(method, src.varc)
 				w.dest.Store(s.into)
 			}
 
 		case callFunctionStep:
 			if isTailCall(src.steps[p+1:], s.into) {
 				w.compileTailArgs(src, s.params)
-				w.dest.FunctionCallTail(s.method)
+				w.dest.Call(s.method, 0)
 				// we do this to skip the final return instruction
 				return
 
@@ -120,7 +121,7 @@ func (w *assembler) writeBlock(src method) {
 					w.dest.Load(f)
 					w.dest.Store(variable(src.varc + i))
 				}
-				w.dest.FunctionCall(s.method, variable(src.varc))
+				w.dest.Call(s.method, src.varc)
 				w.dest.Store(s.into)
 			}
 

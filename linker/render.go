@@ -14,6 +14,7 @@ func Render(w io.Writer, p *Program) error {
 var tmpl = must.Be(template.New("").Parse(`
 
 #include <stddef.h>
+#include <stdio.h>
 #include <cz.h>
 
 {{range .Included -}}

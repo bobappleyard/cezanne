@@ -26,6 +26,7 @@ type groupOpen struct{}
 type groupClose struct{}
 type blockOpen struct{}
 type blockClose struct{}
+type fnArrow struct{}
 type importKeyword struct{}
 type funcKeyword struct{}
 type objectKeyword struct{}
@@ -47,6 +48,7 @@ func (groupOpen) tok()      {}
 func (groupClose) tok()     {}
 func (blockOpen) tok()      {}
 func (blockClose) tok()     {}
+func (fnArrow) tok()        {}
 func (importKeyword) tok()  {}
 func (funcKeyword) tok()    {}
 func (objectKeyword) tok()  {}
@@ -72,6 +74,9 @@ var lexicon = must.Be(text.NewLexer(
 	text.Regex(`\d+`, func(start int, text string) token {
 		x, _ := strconv.Atoi(text)
 		return intLit{x}
+	}),
+	text.Regex(`->`, func(start int, text string) token {
+		return fnArrow{}
 	}),
 	text.Regex(`-|[+*/><=]+`, func(start int, text string) token {
 		return op{text}

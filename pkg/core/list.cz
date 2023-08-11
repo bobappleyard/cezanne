@@ -1,0 +1,32 @@
+export type List[T] {
+    match[U](v: ListVisitor[T, U]): U
+    and(x: T): List[T]
+    iter(): Iter[T]
+}
+
+type ListVisitor[T, U] {
+    empty(): U
+    pair(head: T, tail: List[T]): U
+}
+
+export List = {
+    empty[T](): List[T] -> emptyList()
+    pair[T](head: T, tail: List[T]): List[T] -> pairList(head, tail)
+}
+
+export func append(left, right) -> left.match({
+    empty() -> right
+    pair(h, t) -> List.pair(h, append(t, right))
+})
+
+func emptyList() -> {
+    match(v) -> v.empty()
+    and(x) -> pairList(x, List.empty())
+}
+
+func pairList(head, tail) -> {
+    match(v) -> v.pair(head, tail)
+    and(x) -> append(this, List.pair(x, List.empty()))
+}
+
+

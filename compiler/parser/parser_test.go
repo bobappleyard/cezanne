@@ -15,7 +15,7 @@ func TestParseFile(t *testing.T) {
 	}{
 		{
 			name: "IntLit",
-			in:   `func main() {1}`,
+			in:   `func main() -> 1`,
 			out: ast.Package{
 				Funcs: []ast.Method{{
 					Name: "main",
@@ -27,10 +27,8 @@ func TestParseFile(t *testing.T) {
 			name: "Object",
 			in: `
 
-				func main() {
-					object {
-						visit(v) { v }
-					}
+				func main() -> {
+					visit(v) -> v
 				}
 				`,
 			out: ast.Package{
@@ -50,11 +48,9 @@ func TestParseFile(t *testing.T) {
 			name: "ObjectManyMethods",
 			in: `
 
-				func main() {
-					object {
-						true() { v }
-						false() { u }
-					}
+				func main() -> {
+					true() -> v 
+					false() -> u
 				}
 				`,
 			out: ast.Package{
@@ -78,16 +74,10 @@ func TestParseFile(t *testing.T) {
 		{
 			name: "NestedObject",
 			in: `
-			func main() {
-				test.match(object {
-					true() {
-						1
-					}
-					false() {
-						2
-					}
-				})
-			}
+			func main() -> test.match({
+				true() -> 1
+				false() -> 2
+			})
 			`,
 			out: ast.Package{
 				Funcs: []ast.Method{{Name: "main", Body: ast.Invoke{
@@ -112,12 +102,11 @@ func TestParseFile(t *testing.T) {
 			name: "MultilineParams",
 			in: `
 
-				func main() {
-					x.method(
-						1,
-						2
-					)
-				}
+				func main() -> x.method(
+					1,
+					2
+				)
+
 			`,
 			out: ast.Package{
 				Funcs: []ast.Method{{
@@ -129,6 +118,41 @@ func TestParseFile(t *testing.T) {
 							ast.Int{Value: 1},
 							ast.Int{Value: 2},
 						},
+					},
+				}},
+			},
+		},
+		{
+			name: "Currying",
+			in: `
+
+				func fold(f) -> (i) -> (l) -> jump(f, i, l)
+				
+			`,
+			out: ast.Package{
+				Funcs: []ast.Method{{
+					Name: "fold",
+					Args: []string{"f"},
+					Body: ast.Create{
+						Methods: []ast.Method{{
+							Name: "call",
+							Args: []string{"i"},
+							Body: ast.Create{
+								Methods: []ast.Method{{
+									Name: "call",
+									Args: []string{"l"},
+									Body: ast.Invoke{
+										Object: ast.Ref{Name: "jump"},
+										Name:   "call",
+										Args: []ast.Expr{
+											ast.Ref{Name: "f"},
+											ast.Ref{Name: "i"},
+											ast.Ref{Name: "l"},
+										},
+									},
+								}},
+							},
+						}},
 					},
 				}},
 			},
@@ -146,10 +170,8 @@ func TestParseFile(t *testing.T) {
 func TestFullParse(t *testing.T) {
 	var m ast.Package
 	err := ParseFile(&m, []byte(`
-	func main() {
-		handle trigger Write(2) {
-			Write(x) { resume.call(x) }
-		}
+	func main() -> handle trigger Write(2) {
+		Write(x) -> resume.call(x)
 	}
 	`))
 	assert.Nil(t, err)

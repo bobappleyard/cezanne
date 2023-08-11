@@ -95,6 +95,33 @@ func (invokeMethod) expr()  {}
 func (handleEffects) expr() {}
 func (triggerEffect) expr() {}
 
+type rest interface {
+	rest()
+	attach(e expr) expr
+}
+
+type call struct {
+	args []expr
+	r    rest
+}
+
+type nothingMore struct{}
+
+func (call) rest()        {}
+func (nothingMore) rest() {}
+
+func (nothingMore) attach(e expr) expr {
+	return e
+}
+
+func (c call) attach(e expr) expr {
+	return c.r.attach(invokeMethod{
+		Name:   "call",
+		Object: e,
+		Args:   c.args,
+	})
+}
+
 func (parseRules) ParseEmptyFile() file {
 	return file{}
 }
@@ -117,12 +144,12 @@ func (parseRules) ParseImport(f file, m importKeyword, path ident) (file, error)
 func (parseRules) ParseFunc(
 	m funcKeyword, name ident,
 	gro groupOpen, args argList, grc groupClose,
-	bo blockOpen, body exprList, bc blockClose,
+	ar fnArrow, e expr,
 ) funcDecl {
 	return funcDecl{
 		name: name.name,
 		args: args.args,
-		body: body.exprs,
+		body: []expr{e},
 	}
 }
 
@@ -133,7 +160,11 @@ func (parseRules) ParseVar(kw varKeyword, name ident, value expr) varDecl {
 	}
 }
 
-func (parseRules) ParseObject(kw objectKeyword,
+func (parseRules) ParseGroup(gro groupOpen, e expr, grc groupClose) expr {
+	return e
+}
+
+func (parseRules) ParseObject(
 	gro blockOpen, methods methodList, grc blockClose,
 ) createObject {
 	return createObject{
@@ -144,12 +175,25 @@ func (parseRules) ParseObject(kw objectKeyword,
 func (parseRules) ParseMethod(
 	name ident,
 	gro groupOpen, args argList, grc groupClose,
-	bo blockOpen, body exprList, bc blockClose,
+	ar fnArrow, e expr,
 ) method {
 	return method{
 		name: name.name,
 		args: args.args,
-		body: body.exprs,
+		body: []expr{e},
+	}
+}
+
+func (parseRules) ParseLambda(
+	gro groupOpen, args argList, grc groupClose,
+	ar fnArrow, e expr,
+) createObject {
+	return createObject{
+		Methods: []method{{
+			name: "call",
+			args: args.args,
+			body: []expr{e},
+		}},
 	}
 }
 
@@ -157,8 +201,16 @@ func (parseRules) ParseInt(x intLit) intVal {
 	return intVal{x.val}
 }
 
-func (parseRules) ParseVarRef(x ident) varRef {
-	return varRef{x.name}
+func (parseRules) ParseVarRef(x ident, r rest) expr {
+	return r.attach(varRef{x.name})
+}
+
+func (parseRules) ParseNullRest() nothingMore {
+	return nothingMore{}
+}
+
+func (parseRules) ParseCall(gro groupOpen, args paramList, grc groupClose, r rest) call {
+	return call{args: args.args, r: r}
 }
 
 func (parseRules) ParseMethodCall(
@@ -168,17 +220,6 @@ func (parseRules) ParseMethodCall(
 	return invokeMethod{
 		Object: obj,
 		Name:   name.name,
-		Args:   params.args,
-	}
-}
-
-func (parseRules) ParseFunctionCall(
-	obj expr,
-	gro groupOpen, params paramList, grc groupClose,
-) invokeMethod {
-	return invokeMethod{
-		Object: obj,
-		Name:   "call",
 		Args:   params.args,
 	}
 }

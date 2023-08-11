@@ -1,0 +1,45 @@
+
+export type Parser[T] {
+    parse(input: String, at: Int): Match[T] in {Error}
+}
+
+export record type Match[T] {
+    result: T
+    start: Int
+    end: Int
+}
+
+export func parse(p, in) -> p.parse(in, 0).result
+
+export var match = {
+
+    string(s) -> {
+        parse(input, at) {
+            var end = at + s.length
+            return input.substring(at, end).equals(s).match({
+                true() -> Match(s, at, end)
+                false() -> trigger Error("failed to match at %s".with(at))
+            })
+        }
+    }
+    
+    seq(ps) -> {
+        parse(input, at) -> parseSequence(ps, input, at)
+    }
+
+    choice(ps) -> {
+        parse(input, at) -> ps.match({
+            empty() -> 
+        })
+    }
+
+}
+
+func parseSequence(ps, input, at) -> ps.match({
+    empty() -> Match(List.empty(), at, at)
+    pair(head, tail) {
+        var h = head.parse(input, at)
+        var t = parseSequence(tail, input, h.end)
+        return Match(List.pair(h.result, t.result), h.start, t.end)
+    }
+})

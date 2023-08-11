@@ -185,8 +185,10 @@ func interpretClass(s scope, methods []ast.Method) ([]method, []string) {
 			argc: len(m.Args),
 			varc: len(m.Args) + 1,
 		}
+
 		v := interpretExpr(s.enter(m.Args, freevars), &res, m.Body)
 		res.steps = append(res.steps, returnStep{val: v})
+
 		return res
 	})
 

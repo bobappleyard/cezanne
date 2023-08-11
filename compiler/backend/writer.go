@@ -33,6 +33,15 @@ func (w *assemblyWriter) ImplementMethod(classID int, method string, argc, varc 
 	fmt.Fprintln(&w.code)
 }
 
+func (w *assemblyWriter) ImplementInit(varc int, block func()) {
+	fmt.Fprintf(&w.code, "extern void cz_impl_%s() {\n", w.meta.Name)
+	fmt.Fprintf(&w.code, "    CZ_PROLOG(%d, %d);\n", 0, varc)
+	block()
+	fmt.Fprintln(&w.code, "    CZ_EPILOG();")
+	fmt.Fprintln(&w.code, "}")
+	fmt.Fprintln(&w.code)
+}
+
 func (w *assemblyWriter) Natural(val int) {
 	w.call("CZ_INT", val)
 }
@@ -53,7 +62,7 @@ func (w *assemblyWriter) GlobalLoad(from int) {
 	w.call("CZ_GLOBAL", from)
 }
 
-func (w *assemblyWriter) Create(classID int, base variable) {
+func (w *assemblyWriter) Create(classID, base int) {
 	w.call("CZ_CREATE", fmt.Sprintf("cz_classes_%s + %d", w.meta.Name, classID), base)
 }
 
@@ -61,14 +70,13 @@ func (w *assemblyWriter) Return() {
 	w.call("CZ_RETURN")
 }
 
-func (w *assemblyWriter) FunctionCall(name string, base variable) {
+func (w *assemblyWriter) Call(name string, base int) {
 	w.addFunction(name)
+	if base == 0 {
+		w.call("CZ_CALL_TAIL", name)
+		return
+	}
 	w.call("CZ_CALL", name, base)
-}
-
-func (w *assemblyWriter) FunctionCallTail(name string) {
-	w.addFunction(name)
-	w.call("CZ_CALL_TAIL", name)
 }
 
 func (w *assemblyWriter) call(name string, args ...any) {

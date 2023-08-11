@@ -69,11 +69,13 @@ var regexGrammar = &regexRules{map[rune]charset{
 	'c': {ranges: []match{
 		{start: 'a', end: 'z'},
 		{start: 'A', end: 'Z'},
+		{start: '_', end: '_'},
 	}},
 	'w': {ranges: []match{
 		{start: 'a', end: 'z'},
 		{start: 'A', end: 'Z'},
 		{start: '0', end: '9'},
+		{start: '_', end: '_'},
 	}},
 	'd': {ranges: []match{
 		{start: '0', end: '9'},

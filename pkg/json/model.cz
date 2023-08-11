@@ -1,0 +1,12 @@
+
+export sum type Node {
+
+    string(x: String)
+    int(x: Int)
+    bool(x: Bool)
+    null()
+    array(xs: Seq[JsonNode])
+    obj(xs: Map[String, JsonNode])
+
+}
+

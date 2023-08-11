@@ -5,7 +5,8 @@ set -e
 CC="gcc"
 
 # clean dir
-rm -rf build/*
+rm -rf build
+mkdir build
 
 # test dependency
 $CC -c -I. -Wall -Werror -o build/test.o test-pkg.c 
@@ -22,5 +23,5 @@ go run ./cmd/cz-link -i build -o build/link.c -p fac
 $CC -c -I. -Wall -Werror -o build/main.o main.c
 $CC -c -I. -Wall -Werror -o build/link.o build/link.c
 
-$CC -o test build/main.o build/link.o build/fac.a build/test.a
+$CC -o build/test build/main.o build/link.o build/fac.a build/test.a
 

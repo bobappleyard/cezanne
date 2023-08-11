@@ -1,0 +1,39 @@
+export type Iter[T] {
+    next(): IterStep[T]
+}
+
+export sum type IterStep[T] {
+    some(x: T, rest: Iter[T])
+    done()
+}
+
+export func from(xs: Iter[T]): IterSearch[T] -> {
+    select(selector) -> selectMany(xs, emptySet(), x -> from(singleton(selector(x))))
+
+    where(test) -> selectMany(xs, emptySet(), x -> from(test(x).match({
+        true() -> singleton(x)
+        false() -> emptySet()
+    }))
+
+    selectMany(selector) -> selectMany(xs, emptySet(), selector)
+}
+
+func emptySet() -> {
+    next() -> IterStep.done()
+}
+
+func singleton(x) -> {
+    next() -> IterStep.some(x, emptySet())
+}
+
+func selectMany(xs, current, selector) -> {
+    next() -> doSelectMany(xs, current, selector)
+}
+
+func doSelectMany(xs, current, selector) -> current.next().match({
+    some(x, rest) -> IterStep.some(x, selectMany(xs, rest, selector))
+    done() -> xs.next().match({
+        some(x, rest) -> doSelectMany(rest, selector(x), selector)
+        done() -> IterStep.done()
+    })
+})
