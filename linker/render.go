@@ -15,7 +15,7 @@ var tmpl = must.Be(template.New("").Parse(`
 
 #include <stddef.h>
 #include <stdio.h>
-#include <cz.h>
+#include "cz.h"
 
 {{range .Included -}}
 	const int cz_classes_{{.Name}} = {{.Offset}};

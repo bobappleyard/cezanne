@@ -8,78 +8,45 @@ import (
 	"testing"
 
 	"github.com/bobappleyard/cezanne/assert"
+	"github.com/bobappleyard/cezanne/buildutil"
 	"github.com/bobappleyard/cezanne/compiler/ast"
 	"github.com/bobappleyard/cezanne/compiler/backend"
 	"github.com/bobappleyard/cezanne/compiler/parser"
+	"github.com/bobappleyard/cezanne/must"
 )
 
-type runner struct {
-	err error
+func buildTestPackage(s *buildutil.Space) {
+	s.WriteFile("link.json", must.Be(os.ReadFile("testdata/test-link.json")))
+	s.WriteFile("test-pkg.c", must.Be(os.ReadFile("testdata/test-pkg.c")))
+	s.Compile("test-pkg.c")
+	s.Package("test.a", []string{"link.json", "test-pkg.o"})
 }
 
-func (r *runner) run(cmd string, args ...string) {
-	if r.err != nil {
-		return
-	}
-	c := exec.Command(cmd, args...)
-	buf, err := c.CombinedOutput()
-	if err != nil {
-		fmt.Println(string(buf))
-	}
-	r.err = err
-}
-
-func (r *runner) writeFile(name string, data []byte) {
-	if r.err != nil {
-		return
-	}
-	r.err = os.WriteFile(name, data, 0600)
-}
-
-func (r *runner) setErr(err error) {
-	if r.err != nil {
-		return
-	}
-	r.err = err
-}
-
-func clearBuildDir(r *runner) {
-	r.run("rm", "-rf", "testdata/build")
-	r.run("mkdir", "testdata/build")
-}
-
-func buildTestPackage(r *runner) {
-	r.run("cp", "testdata/test-link.json", "testdata/build/link.json")
-	r.run("ar", "csr", "testdata/build/test.a", "testdata/build/link.json")
-	r.run("gcc", "-c", "-I..", "-o", "testdata/build/test-pkg.o", "testdata/test-pkg.c")
-	r.run("ar", "csr", "testdata/build/test.a", "testdata/build/test-pkg.o")
-}
-
-func buildCompiledPackage(r *runner, p ast.Package) {
+func buildCompiledPackage(s *buildutil.Space, p ast.Package) {
 	buf, pkg, err := backend.BuildPackage(p)
-	r.setErr(err)
+	s.SetErr(err)
 
-	r.writeFile("testdata/build/pkg.c", buf)
+	s.WriteFile("pkg.c", buf)
+	s.Compile("pkg.c")
+
 	buf, err = json.Marshal(pkg)
-	r.setErr(err)
-	r.writeFile("testdata/build/link.json", buf)
-	r.run("gcc", "-c", "-I..", "-o", "testdata/build/pkg.o", "testdata/build/pkg.c")
-	pkgFile := fmt.Sprintf("testdata/build/%s.a", p.Name)
-	r.run("ar", "csr", pkgFile, "testdata/build/pkg.o")
-	r.run("ar", "csr", pkgFile, "testdata/build/link.json")
+	s.SetErr(err)
+	s.WriteFile("link.json", buf)
+
+	s.Package(fmt.Sprintf("%s.a", p.Name), []string{"pkg.o", "link.json"})
 }
 
-func buildExecutable(r *runner) {
-	r.run("go", "run", "../cmd/cz-link", "-i", "testdata/build", "-o", "testdata/build/link.c", "-p", "main")
-	r.run("gcc", "-c", "-I..", "-o", "testdata/build/main.o", "../main.c")
-	r.run("gcc", "-c", "-I..", "-o", "testdata/build/link.o", "testdata/build/link.c")
-	r.run("gcc", "-o", "testdata/build/test", "testdata/build/main.o", "testdata/build/link.o", "testdata/build/main.a", "testdata/build/test.a")
+func buildExecutable(s *buildutil.Space) {
+	cmd := exec.Command("go", "run", "../cmd/cz-link", "-i", s.Path(""), "-o", s.Path("test"), "-p", "main")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		s.SetErr(fmt.Errorf("%s\n%w", string(out), err))
+	}
 }
 
 func TestCompiler(t *testing.T) {
-	var r runner
-	clearBuildDir(&r)
-	buildTestPackage(&r)
+	s := buildutil.New()
+	buildTestPackage(s)
 
 	pkg := ast.Package{
 		Name: "main",
@@ -112,12 +79,12 @@ func fold(f, i, xs) -> xs.match({
 		
 	`)))
 
-	buildCompiledPackage(&r, pkg)
-	buildExecutable(&r)
+	buildCompiledPackage(s, pkg)
+	buildExecutable(s)
 
-	assert.Nil(t, r.err)
+	assert.Nil(t, s.Err())
 
-	out, err := exec.Command("testdata/build/test").CombinedOutput()
+	out, err := exec.Command(s.Path("test")).CombinedOutput()
 	assert.Nil(t, err)
 	assert.Equal(t, string(out), "1\n2\n6\n24\n120\n720\n")
 

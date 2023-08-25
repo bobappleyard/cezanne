@@ -1,4 +1,4 @@
-#include <cz.h>
+#include "cz.h"
 #include <stdio.h>
 
 extern const int cz_classes_test;

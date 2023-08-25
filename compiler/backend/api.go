@@ -23,7 +23,7 @@ func BuildPackage(pkg ast.Package) ([]byte, *format.Package, error) {
 	asm.processPending()
 
 	var body bytes.Buffer
-	fmt.Fprintln(&body, "#include <cz.h>")
+	fmt.Fprintln(&body, "#include \"cz.h\"")
 	fmt.Fprintln(&body)
 	fmt.Fprintf(&body, "extern const int cz_classes_%s;\n", pkg.Name)
 	fmt.Fprintln(&body)
