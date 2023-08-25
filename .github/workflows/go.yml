@@ -13,6 +13,12 @@ jobs:
         go-version: 1.19
       id: go
 
+    - name: Install C compiler
+      id: install_cc
+      uses: rlalik/setup-cpp-compiler@master
+      with:
+        compiler: latest
+
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
   
